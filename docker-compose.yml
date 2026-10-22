@@ -13,6 +13,30 @@ services:
       LOG_LEVEL: INFO
       DEFAULT_PAGE_SIZE: "5"
       MAX_PAGE_SIZE: "50"
+      # Dev-only default password; set ARTICLES_DB_PASSWORD in your shell or .env for anything else.
+      DATABASE_URL: postgresql://articles:${ARTICLES_DB_PASSWORD:-articles-dev-password}@articles-db:5432/articles
+      SEED_FILE: /app/data/news.json
+    depends_on:
+      articles-db:
+        condition: service_healthy
+    networks: [articles-backend, services]
+    restart: unless-stopped
+
+  # Database per service: only articles-svc talks to it, and no host port is published.
+  articles-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: articles
+      POSTGRES_PASSWORD: ${ARTICLES_DB_PASSWORD:-articles-dev-password}
+      POSTGRES_DB: articles
+    volumes:
+      - articles-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U articles -d articles"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [articles-backend]
     restart: unless-stopped
 
   users-svc:
@@ -30,6 +54,7 @@ services:
     depends_on:
       users-db:
         condition: service_healthy
+    networks: [users-backend, services]
     restart: unless-stopped
 
   # Database per service: only users-svc talks to it, and no host port is published.
@@ -46,7 +71,20 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    networks: [users-backend]
     restart: unless-stopped
 
+# Each database sits on a private network shared only with its own service,
+# so no other container can even resolve its name. `internal: true` also
+# cuts the databases off from the internet. Services meet on `services`;
+# the gateway and Kafka will join that one, never a backend network.
+networks:
+  articles-backend:
+    internal: true
+  users-backend:
+    internal: true
+  services: {}
+
 volumes:
+  articles-db-data:
   users-db-data:

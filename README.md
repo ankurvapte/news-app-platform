@@ -22,8 +22,8 @@ Each service owns its data and is built, tested and deployed from its own repo.
 They never read each other's data; cross-service calls go over HTTP.
 
 ```
-  client ──▶ articles-svc :8090   (news.json baked into the image)
-  client ──▶ users-svc    :8081 ──▶ users-db (Postgres, users-db-data volume, not exposed)
+  client ──▶ articles-svc :8090 ──▶ articles-db (Postgres, articles-db-data volume, not exposed)
+  client ──▶ users-svc    :8081 ──▶ users-db    (Postgres, users-db-data volume, not exposed)
 ```
 
 ## Run everything
@@ -40,17 +40,22 @@ docker compose up --build -d
 docker compose ps
 curl localhost:8090/health/ready
 curl localhost:8081/health/ready
-docker compose down        # add -v to also delete the users-data volume
+docker compose down        # add -v to also delete both database volumes
 ```
 Swagger UI: http://localhost:8090/docs and http://localhost:8081/docs
 
 Notes:
 - Uses the same host ports as each service's own compose file, so stop those
   first (`docker compose down` in the service folder) or the ports will clash.
-- users data lives in the `users-db` Postgres container on the
-  `news-app_users-db-data` volume, separate from the one created by running
-  `users-svc` on its own. `docker compose down -v` resets it to the seed users.
+- Each service has its own Postgres container and volume (`news-app_articles-db-data`,
+  `news-app_users-db-data`), separate from the ones created by running a service
+  on its own. `docker compose down -v` resets both to the seed data.
 - Look inside: `docker compose exec users-db psql -U users -c "SELECT * FROM users"`
+  or `docker compose exec articles-db psql -U articles -c "SELECT slug FROM articles"`
+- Network isolation: each database sits on its own `internal` network
+  (`articles-backend`, `users-backend`) shared only with its service, so no other
+  container can resolve or reach it, and databases have no internet access.
+  Services talk to each other on the `services` network.
 
 ## Claude Code
 Claude Code reads `CLAUDE.md` from parent folders, so `~/Projects/CLAUDE.md`

@@ -41,6 +41,7 @@ Clean architecture; dependencies point inward only:
 - **Shared code is copied, not shared:** `logging_setup.py`, `api/health.py`, the middleware and Dockerfile are duplicated per service on purpose, so each service can be built and deployed on its own.
 - **Tests:** `test_use_cases.py` is plain unittest (no deps) over the real seed data file. `test_api.py` sets `DATA_FILE` before importing `app.main` (settings load on import) and uses `with TestClient(app)` so `lifespan` runs.
 - **Docker:** each compose file maps one host port to container port 8080. If that host port is taken, the container gets created without its port binding: free the port, then `docker compose up -d --force-recreate`. Compose `environment:` overrides Dockerfile `ENV`, which overrides `config.py` defaults.
+- **Networks (platform compose):** each database joins only its own `internal: true` network (`<svc>-backend`) shared with its service; services meet on `services`. A new service with a DB gets its own backend network; the gateway and Kafka join `services` only, never a backend network.
 
 ## Container-first checklist for every change
 1. One business capability per service. Users, comments, search etc. are separate services.
@@ -58,7 +59,7 @@ Clean architecture; dependencies point inward only:
 - [x] articles-svc: mock data (10 articles) + read API
 - [x] users-svc: CRUD-lite API (JSON file on a named volume)
 - [x] users-svc on Postgres + docker-compose DB (database per service)
-- [ ] articles-svc on Postgres + docker-compose DB (same pattern as users-svc), so every service has its final storage before deploy
+- [x] articles-svc on Postgres + docker-compose DB (same pattern as users-svc), so every service has its final storage before deploy
 - [ ] Schema migrations (e.g. Alembic) in both services, replacing `schema.sql`; applied before the app starts. Done before there is real data, so no baselining.
 - [ ] CI per repo: on every push run tests, build the image, push it to a registry (GHCR) tagged with the commit SHA
 - [ ] Deploy to a web server
