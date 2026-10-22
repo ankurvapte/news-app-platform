@@ -1,0 +1,33 @@
+# Runs the whole news app. Each service still builds from its own repo,
+# which must be cloned next to this one (../articles-svc, ../users-svc).
+# Once images are published to a registry, swap `build:` for a pinned `image:` tag.
+name: news-app
+
+services:
+  articles-svc:
+    build: ../articles-svc
+    image: articles-svc:local
+    ports:
+      - "8090:8080"
+    environment:
+      LOG_LEVEL: INFO
+      DEFAULT_PAGE_SIZE: "5"
+      MAX_PAGE_SIZE: "50"
+    restart: unless-stopped
+
+  users-svc:
+    build: ../users-svc
+    image: users-svc:local
+    ports:
+      - "8081:8080"
+    environment:
+      LOG_LEVEL: INFO
+      DEFAULT_PAGE_SIZE: "10"
+      MAX_PAGE_SIZE: "50"
+    volumes:
+      # Persists users.json across restarts until the Postgres adapter lands.
+      - users-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  users-data:
