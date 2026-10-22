@@ -3,6 +3,10 @@
 # Once images are published to a registry, swap `build:` for a pinned `image:` tag.
 name: news-app
 
+# Dev-only default passwords; set ARTICLES_DB_PASSWORD / USERS_DB_PASSWORD in your shell or .env for anything else.
+x-articles-db-url: &articles-db-url postgresql://articles:${ARTICLES_DB_PASSWORD:-articles-dev-password}@articles-db:5432/articles
+x-users-db-url: &users-db-url postgresql://users:${USERS_DB_PASSWORD:-users-dev-password}@users-db:5432/users
+
 services:
   articles-svc:
     build: ../articles-svc
@@ -13,14 +17,27 @@ services:
       LOG_LEVEL: INFO
       DEFAULT_PAGE_SIZE: "5"
       MAX_PAGE_SIZE: "50"
-      # Dev-only default password; set ARTICLES_DB_PASSWORD in your shell or .env for anything else.
-      DATABASE_URL: postgresql://articles:${ARTICLES_DB_PASSWORD:-articles-dev-password}@articles-db:5432/articles
+      DATABASE_URL: *articles-db-url
       SEED_FILE: /app/data/news.json
+    depends_on:
+      articles-migrate:
+        condition: service_completed_successfully
+    networks: [articles-backend, services]
+    restart: unless-stopped
+
+  # One-shot: applies pending migrations, then exits; articles-svc starts only if it succeeds.
+  articles-migrate:
+    build: ../articles-svc
+    image: articles-svc:local
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      DATABASE_URL: *articles-db-url
     depends_on:
       articles-db:
         condition: service_healthy
-    networks: [articles-backend, services]
-    restart: unless-stopped
+    healthcheck:
+      disable: true
+    networks: [articles-backend]
 
   # Database per service: only articles-svc talks to it, and no host port is published.
   articles-db:
@@ -48,14 +65,27 @@ services:
       LOG_LEVEL: INFO
       DEFAULT_PAGE_SIZE: "10"
       MAX_PAGE_SIZE: "50"
-      # Dev-only default password; set USERS_DB_PASSWORD in your shell or .env for anything else.
-      DATABASE_URL: postgresql://users:${USERS_DB_PASSWORD:-users-dev-password}@users-db:5432/users
+      DATABASE_URL: *users-db-url
       SEED_FILE: /app/data/users.json
+    depends_on:
+      users-migrate:
+        condition: service_completed_successfully
+    networks: [users-backend, services]
+    restart: unless-stopped
+
+  # One-shot: applies pending migrations, then exits; users-svc starts only if it succeeds.
+  users-migrate:
+    build: ../users-svc
+    image: users-svc:local
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      DATABASE_URL: *users-db-url
     depends_on:
       users-db:
         condition: service_healthy
-    networks: [users-backend, services]
-    restart: unless-stopped
+    healthcheck:
+      disable: true
+    networks: [users-backend]
 
   # Database per service: only users-svc talks to it, and no host port is published.
   users-db:
@@ -74,10 +104,10 @@ services:
     networks: [users-backend]
     restart: unless-stopped
 
-# Each database sits on a private network shared only with its own service,
-# so no other container can even resolve its name. `internal: true` also
-# cuts the databases off from the internet. Services meet on `services`;
-# the gateway and Kafka will join that one, never a backend network.
+# Each database sits on a private network shared only with its own service
+# (and its migrate job), so no other container can even resolve its name.
+# `internal: true` also cuts the databases off from the internet. Services
+# meet on `services`; the gateway and Kafka will join that one, never a backend network.
 networks:
   articles-backend:
     internal: true

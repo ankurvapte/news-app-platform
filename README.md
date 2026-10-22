@@ -56,6 +56,10 @@ Notes:
   (`articles-backend`, `users-backend`) shared only with its service, so no other
   container can resolve or reach it, and databases have no internet access.
   Services talk to each other on the `services` network.
+- Migrations: `articles-migrate` and `users-migrate` are one-shot jobs that run
+  `alembic upgrade head` before their service starts. They show as `Exited (0)`
+  in `docker compose ps -a`; that's expected. If one fails, its service doesn't
+  start: check `docker compose logs users-migrate`.
 
 ## Claude Code
 Claude Code reads `CLAUDE.md` from parent folders, so `~/Projects/CLAUDE.md`

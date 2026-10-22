@@ -36,6 +36,7 @@ Clean architecture; dependencies point inward only:
 - **Wiring:** `main.py` calls `load_settings()` at import time. Then `lifespan` builds the repository and the service, and stores them (plus `settings`) on `app.state`. Routes get the service via `Depends(get_service)`. `/health/ready` reads `app.state.repository.is_ready()`. A new adapter only needs to satisfy the repository Protocol and be swapped in `lifespan`.
 - **Errors:** use cases and domain raise plain exceptions; `main.py` exception handlers map them to HTTP status + the `{error, message, request_id}` body. A new error needs a handler there. Never raise `HTTPException` from lower layers.
 - **Pagination:** `page_size` is defaulted and clamped to `MAX_PAGE_SIZE` in `api/routes.py` (from settings). The service's list use case only checks that it's positive.
+- **Schema migrations:** Alembic per service in `migrations/versions/` (plain SQL via `op.execute`). A one-shot `<svc>-migrate` compose service (same image, `alembic upgrade head`) runs before the app, which starts only after it exits 0. Repositories never create or alter tables. Never edit a deployed migration; add a new one that keeps the old and new app versions working (expand, then contract).
 - **Load failures:** repositories log and report not-ready instead of raising. The container stays up with `/health/ready` → 503 instead of crash-looping. New adapters should follow the same pattern.
 - **Request middleware** (`main.py`) reuses or generates `X-Request-ID`, echoes it on the response and logs one JSON line per non-health request. Log extra fields with `logger.info("msg", extra={...})`; `logging_setup.py` turns `extra` keys into top-level JSON keys.
 - **Shared code is copied, not shared:** `logging_setup.py`, `api/health.py`, the middleware and Dockerfile are duplicated per service on purpose, so each service can be built and deployed on its own.
@@ -60,7 +61,7 @@ Clean architecture; dependencies point inward only:
 - [x] users-svc: CRUD-lite API (JSON file on a named volume)
 - [x] users-svc on Postgres + docker-compose DB (database per service)
 - [x] articles-svc on Postgres + docker-compose DB (same pattern as users-svc), so every service has its final storage before deploy
-- [ ] Schema migrations (e.g. Alembic) in both services, replacing `schema.sql`; applied before the app starts. Done before there is real data, so no baselining.
+- [x] Schema migrations (Alembic) in both services, replacing `schema.sql`; applied by a one-shot migrate container before the app starts
 - [ ] CI per repo: on every push run tests, build the image, push it to a registry (GHCR) tagged with the commit SHA
 - [ ] Deploy to a web server
   - [ ] Platform compose runs pinned registry images (no `build:`); secrets live on the server, never in a repo
