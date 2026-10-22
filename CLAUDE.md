@@ -28,7 +28,7 @@ Clean architecture; dependencies point inward only:
 `api → application → domain`, and `infrastructure` implements `application/ports.py`.
 - `app/domain/` — entities and business rules. Pure Python. Never import FastAPI, pydantic, json, os or any infrastructure here.
 - `app/application/` — use cases (`<Thing>Service`) and ports (interfaces). No HTTP concepts (status codes, Request).
-- `app/infrastructure/` — adapters (currently JSON file; next: Postgres). Only place that knows where data lives.
+- `app/infrastructure/` — adapters (JSON file or Postgres, picked in `main.py` from env). Only place that knows where data lives.
 - `app/api/` — thin HTTP layer: parse input, call a use case, map to `schemas.py`. No business logic.
 - `app/main.py` — composition root; the only place layers are wired together.
 
@@ -57,7 +57,23 @@ Clean architecture; dependencies point inward only:
 - [x] Best-practice pillars defined
 - [x] articles-svc: mock data (10 articles) + read API
 - [x] users-svc: CRUD-lite API (JSON file on a named volume)
-- [ ] Skills for the best practices
-- [ ] Postgres repository + docker-compose DB per service (database per service)
-- [ ] API gateway (NGINX/Traefik), CI/CD pipeline
+- [x] users-svc on Postgres + docker-compose DB (database per service)
+- [ ] articles-svc on Postgres + docker-compose DB (same pattern as users-svc), so every service has its final storage before deploy
+- [ ] Schema migrations (e.g. Alembic) in both services, replacing `schema.sql`; applied before the app starts. Done before there is real data, so no baselining.
+- [ ] CI per repo: on every push run tests, build the image, push it to a registry (GHCR) tagged with the commit SHA
 - [ ] Deploy to a web server
+  - [ ] Platform compose runs pinned registry images (no `build:`); secrets live on the server, never in a repo
+  - [ ] Reverse proxy / API gateway (NGINX or Traefik) with TLS as the only public entry; DBs never exposed
+  - [ ] Lock down users-svc writes before going public (no auth yet): block or protect them at the gateway
+  - [ ] Nightly Postgres backups off the server, and a tested restore
+  - [ ] External uptime check on `/health/ready` through the gateway
+- [ ] CD: merge to `main` deploys automatically, checks `/health/ready`, one-command rollback to the previous image tag
+- [ ] News ingestion from external sources via Kafka (once CD works)
+  - [ ] Check server memory first: Kafka wants about 1 GB more RAM; resize the server if needed
+  - [ ] Kafka (single KRaft broker, no ZooKeeper) in `news-app-platform` compose; topics `articles.ingested` + `articles.ingested.dlq`
+  - [ ] New `ingest-svc`: polls external sources (RSS first, then a news API) on a schedule, normalizes items and publishes them keyed by source URL. Owns no article data.
+  - [ ] articles-svc consumer: idempotent upsert into its own Postgres (unique source URL), manual offset commit after the DB write, bad messages go to the DLQ
+  - [ ] articles-svc becomes read + ingest: add `source_url`, `published_at`, `ingested_at` to the data model (README contract)
+  - [ ] Hardening: per-source retries/backoff and rate limits, consumer lag in `/health/ready` or logs, scale the consumer to 2 replicas in one consumer group
+  - [ ] End-to-end test in platform CI (ingest-svc → Kafka → articles-svc), since per-repo CI can't cover the flow
+- [ ] Skills for the best practices (anytime, blocks nothing; best written down right after the step that taught the practice)

@@ -10,6 +10,7 @@ repo depends on them.
 | `CLAUDE.md` | Shared architecture rules and container checklist for every service |
 | `docker-compose.yml` | Runs all services together |
 | `gateway/` | *(planned)* API gateway config (NGINX/Traefik) |
+| Kafka (in `docker-compose.yml`) | *(planned)* Message broker between `ingest-svc` and articles-svc for news from external sources |
 
 ## Services
 | Service | Repo | Capability | Host port |
@@ -22,7 +23,7 @@ They never read each other's data; cross-service calls go over HTTP.
 
 ```
   client ──▶ articles-svc :8090   (news.json baked into the image)
-  client ──▶ users-svc    :8081   (users.json on the users-data volume)
+  client ──▶ users-svc    :8081 ──▶ users-db (Postgres, users-db-data volume, not exposed)
 ```
 
 ## Run everything
@@ -46,8 +47,10 @@ Swagger UI: http://localhost:8090/docs and http://localhost:8081/docs
 Notes:
 - Uses the same host ports as each service's own compose file, so stop those
   first (`docker compose down` in the service folder) or the ports will clash.
-- This stack has its own `news-app_users-data` volume, separate from the one
-  created by running `users-svc` on its own.
+- users data lives in the `users-db` Postgres container on the
+  `news-app_users-db-data` volume, separate from the one created by running
+  `users-svc` on its own. `docker compose down -v` resets it to the seed users.
+- Look inside: `docker compose exec users-db psql -U users -c "SELECT * FROM users"`
 
 ## Claude Code
 Claude Code reads `CLAUDE.md` from parent folders, so `~/Projects/CLAUDE.md`
