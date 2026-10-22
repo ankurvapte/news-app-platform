@@ -15,7 +15,7 @@ repo depends on them.
 | Service | Repo | Capability | Host port |
 |---|---|---|---|
 | articles-svc | [articles-svc](https://github.com/ankurvapte/articles-svc) | News articles (read-only) | 8090 |
-| users-svc | `users-svc` *(not yet pushed)* | User accounts/profiles (read + write) | 8081 |
+| users-svc | [users-svc](https://github.com/ankurvapte/users-svc) | User accounts/profiles (read + write) | 8081 |
 
 Each service owns its data and is built, tested and deployed from its own repo.
 They never read each other's data; cross-service calls go over HTTP.
