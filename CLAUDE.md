@@ -66,6 +66,12 @@ Clean architecture; dependencies point inward only:
   - `.github/workflows/ci.yml`, identical in every service repo: tests (with a Postgres service container) → build → smoke test `/health/ready` → push `ghcr.io/ankurvapte/<svc>:<full sha>` (+ `:main` on main)
   - Decided: images are public (they hold no secrets; the server pulls without a token).
   - Decided: CI does not touch the platform compose. Tags are pinned by hand at the Deploy step; CD automates the bump.
+- [ ] Learning session: YAML and GitHub Actions in depth (next, before Deploy; walk through it together, don't rush)
+  - [ ] YAML itself: maps, lists, scalars, indentation, quoting (`"3.12"` vs `3.12`), `|` vs `>-`, comments, anchors (`&`/`*`, used in the platform compose)
+  - [ ] GitHub Actions model: workflow → events (`on:`) → jobs → steps; `uses:` vs `run:`; `needs:`, `services:`, `permissions:`, `concurrency:`
+  - [ ] Expressions and contexts: `${{ }}` vs `$VAR`, the `github` context (using the real values from the "Show github context" step), `steps.<id>.outputs`, secrets
+  - [ ] Reading `ci.yml` and `docker-compose.yml` line by line; then write a small workflow from scratch and check it with `actionlint`
+  - [ ] Where to look things up: workflow syntax, events and contexts docs, action READMEs/`action.yml`, starter-workflows, VS Code GitHub Actions + YAML extensions
 - [ ] Deploy to a web server
   - [ ] Platform compose runs pinned registry images (`ghcr.io/ankurvapte/<svc>:<full sha>`, no `build:`); secrets live on the server, never in a repo
   - [ ] Reverse proxy / API gateway (NGINX or Traefik) with TLS as the only public entry; DBs never exposed
