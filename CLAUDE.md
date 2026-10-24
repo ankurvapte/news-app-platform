@@ -62,11 +62,12 @@ Clean architecture; dependencies point inward only:
 - [x] users-svc on Postgres + docker-compose DB (database per service)
 - [x] articles-svc on Postgres + docker-compose DB (same pattern as users-svc), so every service has its final storage before deploy
 - [x] Schema migrations (Alembic) in both services, replacing `schema.sql`; applied by a one-shot migrate container before the app starts
-- [ ] CI per repo: on every push run tests, build the image, push it to a registry (GHCR) tagged with the commit SHA
-  - Open decision: GHCR image visibility. Private (the server needs a read-only pull token) or public (no token, anyone can pull the images).
-  - Open decision: how a new image tag reaches the server. Simplest: each service's CI updates its pinned tag in the platform compose (needed again for CD and `ingest-svc`).
+- [x] CI per repo: on every push run tests, build the image, push it to a registry (GHCR) tagged with the commit SHA
+  - `.github/workflows/ci.yml`, identical in every service repo: tests (with a Postgres service container) → build → smoke test `/health/ready` → push `ghcr.io/ankurvapte/<svc>:<full sha>` (+ `:main` on main)
+  - Decided: images are public (they hold no secrets; the server pulls without a token).
+  - Decided: CI does not touch the platform compose. Tags are pinned by hand at the Deploy step; CD automates the bump.
 - [ ] Deploy to a web server
-  - [ ] Platform compose runs pinned registry images (no `build:`); secrets live on the server, never in a repo
+  - [ ] Platform compose runs pinned registry images (`ghcr.io/ankurvapte/<svc>:<full sha>`, no `build:`); secrets live on the server, never in a repo
   - [ ] Reverse proxy / API gateway (NGINX or Traefik) with TLS as the only public entry; DBs never exposed
   - [ ] Lock down users-svc writes before going public (no auth yet): block or protect them at the gateway
   - [ ] Nightly Postgres backups off the server, and a tested restore
