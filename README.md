@@ -109,14 +109,16 @@ in a single transaction (a failed restore leaves the old data), then starts it a
 ```
  uptime-check ──every 60 s──▶ https://localhost/health/articles/ready ─┐
  (curl, own container)        https://localhost/health/users/ready    ─┤
-                                     │ connects to the gateway container,
-                                     ▼ same host name + TLS as a real client
-                              gateway ─▶ articles-svc / users-svc ─▶ DB readiness
+                                     │ connects to host.docker.internal:443
+                                     ▼ = this Mac's 127.0.0.1:443, same host name + TLS as a real client
+                              Docker port forwarding ─▶ gateway ─▶ articles-svc / users-svc ─▶ DB readiness
 ```
 - `uptime-check` (curlimages/curl) checks every service in `CHECK_SERVICES` every
-  `CHECK_INTERVAL_SECONDS` (60), through the gateway, verifying the TLS certificate
-  with mkcert's CA (`certs/rootCA.pem`). A broken gateway, route, certificate,
-  service or database all show up as "down".
+  `CHECK_INTERVAL_SECONDS` (60), verifying the TLS certificate with mkcert's CA
+  (`certs/rootCA.pem`). It connects to `CHECK_VIA` (default
+  `host.docker.internal:443`, the Mac's published port), so a broken port
+  binding, gateway, route, certificate, service or database all show up as "down".
+  `CHECK_VIA=gateway:443` would test only from the gateway inwards.
 - `docker compose ps` shows `uptime-check` as **healthy** only while every service
   answered 200 on the last round; **unhealthy** means something is down.
 - Logs (JSON) stay quiet while all is well: `ERROR service is down` when a service

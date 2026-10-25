@@ -78,9 +78,11 @@ services:
     networks: [services]
     restart: unless-stopped
 
-  # Scheduled health check through the gateway: the same path a client takes
-  # (host name, TLS, routing), so it catches a broken gateway too. Its own
-  # health shows the result in `docker compose ps`; details in its JSON logs.
+  # Scheduled health check through the gateway, along the same path a client on
+  # this machine takes: published port 127.0.0.1:443 (via host.docker.internal)
+  # → port forwarding → gateway → service → DB. So it also catches a broken
+  # port binding or gateway. Its own health shows the result in
+  # `docker compose ps`; details in its JSON logs.
   uptime-check:
     image: curlimages/curl:8.23.0
     init: true
@@ -89,6 +91,12 @@ services:
       PUBLIC_HOST: ${PUBLIC_HOST:-localhost}
       CHECK_SERVICES: articles users
       CHECK_INTERVAL_SECONDS: ${CHECK_INTERVAL_SECONDS:-60}
+      # Where to connect: the host's published port. `gateway:443` would skip
+      # the port forwarding and only test from the gateway inwards.
+      CHECK_VIA: ${CHECK_VIA:-host.docker.internal:443}
+    extra_hosts:
+      # Docker Desktop defines host.docker.internal itself; this makes it work on Linux too.
+      - host.docker.internal:host-gateway
     volumes:
       - ./scripts/uptime-check.sh:/usr/local/bin/uptime-check:ro
       - ./certs:/certs:ro
