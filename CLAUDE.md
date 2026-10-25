@@ -75,6 +75,7 @@ Clean architecture; dependencies point inward only:
 - [ ] Deploy to a web server
   - Decided (2026-10-25): AWS, one small VM that can be stopped when unused (cost matters); lean and fast deploys. Own domain deferred (user's choice); start on a free hostname (e.g. DuckDNS or sslip.io) with real Let's Encrypt TLS, and keep the hostname in one env var so switching to a bought domain later is a config change. Traefik first; NGINX later as a second gateway option, and CD should be able to deploy with either.
   - Why both gateways: to benchmark them against each other. Keep the gateway swappable: same services and routes, gateway picked per deploy (e.g. compose profiles), services never depend on which one runs.
+  - Decided: region Mumbai (`ap-south-1`).
   - Decided: ARM (Graviton `t4g`) instance. CI runs on native ARM runners (`ubuntu-24.04-arm`) and builds `linux/arm64` only (server and dev Macs are both ARM).
   - Decided: access via AWS SSM only (instance role with `AmazonSSMManagedInstanceCore`); no SSH port, no key pairs. Security group inbound: 80/443 only. CD will reach the server through SSM too (GitHub OIDC → AWS role, no long-lived AWS keys).
   - Decided: free DuckDNS hostname, IP updated on boot, so no Elastic IP is needed.
