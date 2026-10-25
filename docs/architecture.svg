@@ -85,16 +85,16 @@
     <text x="927" y="205" class="s">+ :main on main</text>
     <text x="927" y="218" class="s">GITHUB_TOKEN</text>
 
-    <rect x="1048" y="150" width="118" height="74" rx="8" class="planned"/>
-    <text x="1059" y="172" class="planned-b">deploy-bump</text>
+    <rect x="1048" y="150" width="118" height="74" rx="8" fill="#ffffff" stroke="#7c3aed"/>
+    <text x="1059" y="172" class="b">deploy-bump</text>
     <text x="1059" y="190" class="s">main only: pins</text>
     <text x="1059" y="205" class="s">the SHA in platform</text>
-    <text x="1059" y="218" class="s">⏳ token needed</text>
+    <text x="1059" y="218" class="s">+ token secret</text>
   </g>
   <line x1="638" y1="187" x2="650" y2="187" class="line" marker-end="url(#arrow)"/>
   <line x1="770" y1="187" x2="782" y2="187" class="line" marker-end="url(#arrow)"/>
   <line x1="902" y1="187" x2="914" y2="187" class="line" marker-end="url(#arrow)"/>
-  <line x1="1034" y1="187" x2="1046" y2="187" class="line-planned" marker-end="url(#arrow-gray)"/>
+  <line x1="1034" y1="187" x2="1046" y2="187" class="line" marker-end="url(#arrow)"/>
   <text x="520" y="250" class="t">Trigger: every push (any branch) + manual "Run workflow" · ~1.5 min · bump on main only</text>
   <text x="520" y="268" class="t">needs: test → no image is pushed unless every test passed</text>
   <text x="520" y="286" class="t">permissions: read-only by default; only the image job may write packages</text>
@@ -345,15 +345,16 @@
 
   <!-- Roadmap ahead -->
   <rect x="680" y="1025" width="880" height="255" rx="12" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6 4"/>
-  <text x="700" y="1053" class="h" fill="#475569">⑥ Roadmap ahead (planned)</text>
+  <text x="700" y="1053" class="h" fill="#475569">⑥ Roadmap (CD done · next ones planned)</text>
 
   <rect x="700" y="1075" width="190" height="120" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="1.6"/>
   <text x="714" y="1099" class="b">CD: pull-based (GitOps)</text>
   <text x="714" y="1118" class="s">✓ deploy.sh + auto rollback</text>
-  <text x="714" y="1134" class="s">✓ updater (launchd, 2 min)</text>
-  <text x="714" y="1150" class="s">✓ tested: bad tag, unhealthy</text>
-  <text x="714" y="1176" class="s">⏳ deploy-bump token</text>
-  <text x="714" y="1190" class="s">⏳ end-to-end + agent install</text>
+  <text x="714" y="1132" class="s">✓ updater (launchd, 2 min)</text>
+  <text x="714" y="1146" class="s">✓ rollback tested ×2</text>
+  <text x="714" y="1160" class="s">✓ deploy-bump in both CIs</text>
+  <text x="714" y="1174" class="s">✓ end-to-end, no manual step</text>
+  <text x="714" y="1188" class="s">✓ push → running ≈ 3–4 min</text>
 
   <rect x="915" y="1075" width="190" height="120" rx="10" class="planned"/>
   <text x="929" y="1099" class="planned-b">Gateway benchmark</text>
