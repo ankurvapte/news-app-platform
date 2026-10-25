@@ -39,11 +39,33 @@ curl -k https://localhost/health/users/ready
 curl -k "https://localhost/api/v1/articles?page_size=2"
 docker compose down        # add -v to also delete both database volumes
 ```
-- `-k`: locally Traefik serves its self-signed default certificate, so curl and
-  browsers warn about it. A trusted local certificate (mkcert) or Let's Encrypt
-  on a real server comes later.
+- `-k`: needed until you set up trusted local HTTPS (below); without it Traefik
+  serves its self-signed default certificate, which curl and browsers reject.
 - Traefik dashboard (routers, services, middlewares): http://localhost:8088/dashboard/
 - All three ports are bound to `127.0.0.1`, so nothing outside this machine can reach them.
+
+## Trusted local HTTPS (mkcert)
+[mkcert](https://github.com/FiloSottile/mkcert) creates a small certificate
+authority (CA) on this Mac, adds it to the macOS trust store, and signs a
+certificate for `localhost` with it. Traefik then serves that certificate.
+
+One-time setup:
+```bash
+# 1. Install mkcert (no Homebrew here: the release binary in ~/.local/bin)
+curl -fsSL -o ~/.local/bin/mkcert https://github.com/FiloSottile/mkcert/releases/download/v1.4.4/mkcert-v1.4.4-darwin-arm64
+chmod +x ~/.local/bin/mkcert
+# 2. Trust its CA (asks for your password)
+mkcert -install
+# 3. Create the certificate; the running gateway picks it up, no restart needed
+./scripts/make-local-cert.sh
+```
+- The certificate lands in `certs/` (git-ignored, mounted read-only into the gateway).
+  Delete `certs/` and Traefik falls back to its self-signed default.
+- Browsers (Safari, Chrome) use the macOS trust store, so they show no warning.
+  curl and Python use their own CA bundles, so pass the CA explicitly:
+  `curl --cacert "$(mkcert -CAROOT)/rootCA.pem" https://localhost/...`
+- Keep `$(mkcert -CAROOT)/rootCA-key.pem` private: anyone with it can create
+  certificates this Mac trusts for any site. `mkcert -uninstall` removes the CA.
 
 ## Deploy a new version
 1. Push to a service repo; its CI tests, builds and pushes `ghcr.io/ankurvapte/<svc>:<full sha>`.

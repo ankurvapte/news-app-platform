@@ -78,7 +78,7 @@ Clean architecture; dependencies point inward only:
   - [x] Platform compose runs pinned registry images (`x-<svc>-image` anchors with full-SHA tags, no `build:`)
   - [x] Traefik gateway (`traefik:v3.7.16`) as the only entry: ports bound to `127.0.0.1`, HTTP → HTTPS, routes by `Host(PUBLIC_HOST)` + path, `/health/<svc>/*` rewritten to each service's `/health/*`; services and DBs publish no ports
   - [x] users-svc writes blocked at the gateway (only GET/HEAD routed)
-  - [ ] Trusted local TLS (mkcert) instead of Traefik's self-signed default cert
+  - [x] Trusted local TLS: `scripts/make-local-cert.sh` (mkcert) writes `certs/` (git-ignored), loaded by Traefik's file provider with hot reload; empty `certs/` falls back to the self-signed default
   - [ ] Postgres backups (`pg_dump` per DB to a folder outside the volumes) and a tested restore
   - [ ] Health check through the gateway on a schedule (a script or a small uptime container hitting `/health/<svc>/ready`)
   - Secrets: dev default passwords are fine locally; real ones go in an untracked `.env` on whatever machine runs it, never in a repo

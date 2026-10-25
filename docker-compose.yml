@@ -23,12 +23,16 @@ services:
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
       - --providers.docker.network=news-app_services
-      # HTTP redirects to HTTPS. Locally TLS uses Traefik's self-signed default certificate.
+      # HTTP redirects to HTTPS.
       - --entrypoints.web.address=:80
       - --entrypoints.web.http.redirections.entrypoint.to=websecure
       - --entrypoints.web.http.redirections.entrypoint.scheme=https
       - --entrypoints.websecure.address=:443
       - --entrypoints.websecure.http.tls=true
+      # TLS certificate from files in ./certs (scripts/make-local-cert.sh, mkcert).
+      # Empty or missing ./certs → Traefik's self-signed default certificate.
+      - --providers.file.directory=/certs
+      - --providers.file.watch=true
       # Dashboard (read-only view of routers/services) and /ping on the internal "traefik" entrypoint (:8080).
       - --api.dashboard=true
       - --api.insecure=true
@@ -44,6 +48,7 @@ services:
     volumes:
       # Read-only Docker API access so Traefik can discover containers and their labels.
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./certs:/certs:ro
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
       interval: 10s
