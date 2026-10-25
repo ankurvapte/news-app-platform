@@ -62,7 +62,8 @@ mkcert -install
 - The certificate lands in `certs/` (git-ignored, mounted read-only into the gateway).
   Delete `certs/` and Traefik falls back to its self-signed default.
 - Browsers (Safari, Chrome) use the macOS trust store, so they show no warning.
-  curl and Python use their own CA bundles, so pass the CA explicitly:
+  curl and Python may use their own CA bundles instead; if they still complain,
+  pass the CA explicitly:
   `curl --cacert "$(mkcert -CAROOT)/rootCA.pem" https://localhost/...`
 - Keep `$(mkcert -CAROOT)/rootCA-key.pem` private: anyone with it can create
   certificates this Mac trusts for any site. `mkcert -uninstall` removes the CA.
