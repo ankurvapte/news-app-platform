@@ -63,7 +63,7 @@ Clean architecture; dependencies point inward only:
 - [x] articles-svc on Postgres + docker-compose DB (same pattern as users-svc), so every service has its final storage before deploy
 - [x] Schema migrations (Alembic) in both services, replacing `schema.sql`; applied by a one-shot migrate container before the app starts
 - [x] CI per repo: on every push run tests, build the image, push it to a registry (GHCR) tagged with the commit SHA
-  - `.github/workflows/ci.yml`, identical in every service repo: tests (with a Postgres service container) → build → smoke test `/health/ready` → push `ghcr.io/ankurvapte/<svc>:<full sha>` (+ `:main` on main)
+  - `.github/workflows/ci.yml`, identical in every service repo, on native ARM runners (`linux/arm64` images): tests (with a Postgres service container) → build → smoke test `/health/ready` → push `ghcr.io/ankurvapte/<svc>:<full sha>` (+ `:main` on main)
   - Decided: images are public (they hold no secrets; the server pulls without a token).
   - Decided: CI does not touch the platform compose. Tags are pinned by hand at the Deploy step; CD automates the bump.
 - [ ] Learning session: YAML and GitHub Actions in depth (paused 2026-10-25 by choice; resume when the user asks, walk through it together, don't rush)
@@ -75,7 +75,9 @@ Clean architecture; dependencies point inward only:
 - [ ] Deploy to a web server
   - Decided (2026-10-25): AWS, one small VM that can be stopped when unused (cost matters); lean and fast deploys. Own domain deferred (user's choice); start on a free hostname (e.g. DuckDNS or sslip.io) with real Let's Encrypt TLS, and keep the hostname in one env var so switching to a bought domain later is a config change. Traefik first; NGINX later as a second gateway option, and CD should be able to deploy with either.
   - Why both gateways: to benchmark them against each other. Keep the gateway swappable: same services and routes, gateway picked per deploy (e.g. compose profiles), services never depend on which one runs.
-  - Open: ARM (Graviton, cheaper) needs CI to build `linux/arm64` images too; CI builds only `linux/amd64` today.
+  - Decided: ARM (Graviton `t4g`) instance. CI runs on native ARM runners (`ubuntu-24.04-arm`) and builds `linux/arm64` only (server and dev Macs are both ARM).
+  - Decided: access via AWS SSM only (instance role with `AmazonSSMManagedInstanceCore`); no SSH port, no key pairs. Security group inbound: 80/443 only. CD will reach the server through SSM too (GitHub OIDC → AWS role, no long-lived AWS keys).
+  - Proposed (not yet confirmed by the user): free DuckDNS hostname, IP updated on boot, so no Elastic IP is needed.
   - [ ] Platform compose runs pinned registry images (`ghcr.io/ankurvapte/<svc>:<full sha>`, no `build:`); secrets live on the server, never in a repo
   - [ ] Reverse proxy / API gateway (NGINX or Traefik) with TLS as the only public entry; DBs never exposed
   - [ ] Lock down users-svc writes before going public (no auth yet): block or protect them at the gateway
