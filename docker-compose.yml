@@ -1,24 +1,78 @@
-# Runs the whole news app. Each service still builds from its own repo,
-# which must be cloned next to this one (../articles-svc, ../users-svc).
-# Once images are published to a registry, swap `build:` for a pinned `image:` tag.
+# Runs the whole news app from pinned registry images (built and pushed by each
+# service's CI), behind Traefik as the only entry point. No service repo needs to
+# be cloned. To deploy a new version, change the image tag below and run
+# `docker compose up -d`.
 name: news-app
+
+# Pinned images: full commit SHA tags from each service's CI (never :main).
+# Bump these to deploy a new version; CD will do it automatically later.
+x-articles-image: &articles-image ghcr.io/ankurvapte/articles-svc:faecce079eeb20f92d37969a66a83b62c4410905
+x-users-image: &users-image ghcr.io/ankurvapte/users-svc:01756dd4a979ad53ce5d77591f7344e5d94927ea
 
 # Dev-only default passwords; set ARTICLES_DB_PASSWORD / USERS_DB_PASSWORD in your shell or .env for anything else.
 x-articles-db-url: &articles-db-url postgresql://articles:${ARTICLES_DB_PASSWORD:-articles-dev-password}@articles-db:5432/articles
 x-users-db-url: &users-db-url postgresql://users:${USERS_DB_PASSWORD:-users-dev-password}@users-db:5432/users
 
 services:
-  articles-svc:
-    build: ../articles-svc
-    image: articles-svc:local
+  # The only container with published ports, bound to 127.0.0.1 so nothing outside
+  # this machine can reach it. Services and databases publish no ports at all.
+  gateway:
+    image: traefik:v3.7.16
+    command:
+      # Routes come from labels on the service containers; only those with traefik.enable=true.
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=news-app_services
+      # HTTP redirects to HTTPS. Locally TLS uses Traefik's self-signed default certificate.
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.websecure.http.tls=true
+      # Dashboard (read-only view of routers/services) and /ping on the internal "traefik" entrypoint (:8080).
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --ping=true
+      # JSON logs to stdout, like the services.
+      - --log.format=json
+      - --accesslog=true
+      - --accesslog.format=json
     ports:
-      - "8090:8080"
+      - "127.0.0.1:80:80"
+      - "127.0.0.1:443:443"
+      - "127.0.0.1:8088:8080" # dashboard: http://localhost:8088/dashboard/
+    volumes:
+      # Read-only Docker API access so Traefik can discover containers and their labels.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks: [services]
+    restart: unless-stopped
+
+  articles-svc:
+    image: *articles-image
     environment:
       LOG_LEVEL: INFO
       DEFAULT_PAGE_SIZE: "5"
       MAX_PAGE_SIZE: "50"
       DATABASE_URL: *articles-db-url
       SEED_FILE: /app/data/news.json
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.articles.loadbalancer.server.port=8080
+      - traefik.http.routers.articles.entrypoints=websecure
+      - traefik.http.routers.articles.rule=Host(`${PUBLIC_HOST:-localhost}`) && (PathPrefix(`/api/v1/articles`) || PathPrefix(`/api/v1/categories`))
+      - traefik.http.routers.articles.service=articles
+      # /health/articles/ready → articles-svc /health/ready (both services own /health/*).
+      - traefik.http.routers.articles-health.entrypoints=websecure
+      - traefik.http.routers.articles-health.rule=Host(`${PUBLIC_HOST:-localhost}`) && PathPrefix(`/health/articles/`)
+      - traefik.http.routers.articles-health.service=articles
+      - traefik.http.routers.articles-health.middlewares=articles-health-path
+      - traefik.http.middlewares.articles-health-path.replacepathregex.regex=^/health/articles/(.*)
+      - traefik.http.middlewares.articles-health-path.replacepathregex.replacement=/health/$$1
     depends_on:
       articles-migrate:
         condition: service_completed_successfully
@@ -27,8 +81,7 @@ services:
 
   # One-shot: applies pending migrations, then exits; articles-svc starts only if it succeeds.
   articles-migrate:
-    build: ../articles-svc
-    image: articles-svc:local
+    image: *articles-image
     command: ["alembic", "upgrade", "head"]
     environment:
       DATABASE_URL: *articles-db-url
@@ -57,16 +110,28 @@ services:
     restart: unless-stopped
 
   users-svc:
-    build: ../users-svc
-    image: users-svc:local
-    ports:
-      - "8081:8080"
+    image: *users-image
     environment:
       LOG_LEVEL: INFO
       DEFAULT_PAGE_SIZE: "10"
       MAX_PAGE_SIZE: "50"
       DATABASE_URL: *users-db-url
       SEED_FILE: /app/data/users.json
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.users.loadbalancer.server.port=8080
+      # Read-only from outside: users-svc has no auth yet, so only GET/HEAD are routed.
+      # POST/PATCH match no router and get Traefik's 404.
+      - traefik.http.routers.users.entrypoints=websecure
+      - traefik.http.routers.users.rule=Host(`${PUBLIC_HOST:-localhost}`) && PathPrefix(`/api/v1/users`) && (Method(`GET`) || Method(`HEAD`))
+      - traefik.http.routers.users.service=users
+      # /health/users/ready → users-svc /health/ready.
+      - traefik.http.routers.users-health.entrypoints=websecure
+      - traefik.http.routers.users-health.rule=Host(`${PUBLIC_HOST:-localhost}`) && PathPrefix(`/health/users/`)
+      - traefik.http.routers.users-health.service=users
+      - traefik.http.routers.users-health.middlewares=users-health-path
+      - traefik.http.middlewares.users-health-path.replacepathregex.regex=^/health/users/(.*)
+      - traefik.http.middlewares.users-health-path.replacepathregex.replacement=/health/$$1
     depends_on:
       users-migrate:
         condition: service_completed_successfully
@@ -75,8 +140,7 @@ services:
 
   # One-shot: applies pending migrations, then exits; users-svc starts only if it succeeds.
   users-migrate:
-    build: ../users-svc
-    image: users-svc:local
+    image: *users-image
     command: ["alembic", "upgrade", "head"]
     environment:
       DATABASE_URL: *users-db-url
@@ -107,7 +171,7 @@ services:
 # Each database sits on a private network shared only with its own service
 # (and its migrate job), so no other container can even resolve its name.
 # `internal: true` also cuts the databases off from the internet. Services
-# meet on `services`; the gateway and Kafka will join that one, never a backend network.
+# and the gateway meet on `services`; the gateway never joins a backend network.
 networks:
   articles-backend:
     internal: true

@@ -9,15 +9,16 @@ Each service: Python 3.12, FastAPI, runs in Docker, has its own git repo.
 Each service's `README.md` is its public contract (data model, endpoints, env vars). Keep it in sync when those change.
 
 ## Services
-| Service | Folder | Capability | Host port (compose) |
-|---|---|---|---|
-| articles-svc | `articles-svc/` | News articles (read-only) | 8090 |
-| users-svc | `users-svc/` | User accounts/profiles (read + write) | 8081 |
+| Service | Folder | Capability | Host port (own compose) | Gateway paths (platform compose) |
+|---|---|---|---|---|
+| articles-svc | `articles-svc/` | News articles (read-only) | 8090 | `/api/v1/articles`, `/api/v1/categories`, `/health/articles/*` |
+| users-svc | `users-svc/` | User accounts/profiles (read + write) | 8081 | `/api/v1/users` (GET/HEAD only), `/health/users/*` |
 
 `news-app-platform/` holds system-level files: this `CLAUDE.md` (symlinked to
-`~/Projects/CLAUDE.md`), a `docker-compose.yml` that runs all services together,
-and later the API gateway. Services never depend on it. Add new services to its
-compose file and README.
+`~/Projects/CLAUDE.md`) and a `docker-compose.yml` that runs all services together
+from pinned GHCR images behind the Traefik gateway. Services never depend on it.
+Add new services to its compose file and README: an `x-<svc>-image` anchor with a
+full-SHA tag, `traefik.*` labels for its routes (and `/health/<svc>/*`), no host ports.
 
 Services never read each other's data. A future cross-service call (e.g.
 articles → users for author details) goes over HTTP with a timeout and
@@ -41,7 +42,8 @@ Clean architecture; dependencies point inward only:
 - **Request middleware** (`main.py`) reuses or generates `X-Request-ID`, echoes it on the response and logs one JSON line per non-health request. Log extra fields with `logger.info("msg", extra={...})`; `logging_setup.py` turns `extra` keys into top-level JSON keys.
 - **Shared code is copied, not shared:** `logging_setup.py`, `api/health.py`, the middleware and Dockerfile are duplicated per service on purpose, so each service can be built and deployed on its own.
 - **Tests:** `test_use_cases.py` is plain unittest (no deps) over the real seed data file. `test_api.py` sets `DATA_FILE` before importing `app.main` (settings load on import) and uses `with TestClient(app)` so `lifespan` runs.
-- **Docker:** each compose file maps one host port to container port 8080. If that host port is taken, the container gets created without its port binding: free the port, then `docker compose up -d --force-recreate`. Compose `environment:` overrides Dockerfile `ENV`, which overrides `config.py` defaults.
+- **Gateway (platform compose):** Traefik discovers services by `traefik.*` labels (`exposedbydefault=false`); it is the only container with published ports, bound to `127.0.0.1`. Routes match `Host(${PUBLIC_HOST:-localhost})` + path; write methods on users-svc are not routed. Label `$` must be written `$$` in compose.
+- **Docker:** each service's own compose file maps one host port to container port 8080. If that host port is taken, the container gets created without its port binding: free the port, then `docker compose up -d --force-recreate`. Compose `environment:` overrides Dockerfile `ENV`, which overrides `config.py` defaults.
 - **Networks (platform compose):** each database joins only its own `internal: true` network (`<svc>-backend`) shared with its service; services meet on `services`. A new service with a DB gets its own backend network; the gateway and Kafka join `services` only, never a backend network.
 
 ## Container-first checklist for every change
@@ -72,27 +74,35 @@ Clean architecture; dependencies point inward only:
   - [ ] Expressions and contexts: `${{ }}` vs `$VAR`, the `github` context (using the real values from the "Show github context" step), `steps.<id>.outputs`, secrets
   - [ ] Reading `ci.yml` and `docker-compose.yml` line by line; then write a small workflow from scratch and check it with `actionlint`
   - [ ] Where to look things up: workflow syntax, events and contexts docs, action READMEs/`action.yml`, starter-workflows, VS Code GitHub Actions + YAML extensions
-- [ ] Deploy to a web server
-  - Decided (2026-10-25): AWS, one small VM that can be stopped when unused (cost matters); lean and fast deploys. Own domain deferred (user's choice); start on a free hostname (e.g. DuckDNS or sslip.io) with real Let's Encrypt TLS, and keep the hostname in one env var so switching to a bought domain later is a config change. Traefik first; NGINX later as a second gateway option, and CD should be able to deploy with either.
+- [ ] Deploy locally (production-like, on this Mac): learn and iterate on deploys without a VM to start or stop (decided 2026-10-25)
+  - [x] Platform compose runs pinned registry images (`x-<svc>-image` anchors with full-SHA tags, no `build:`)
+  - [x] Traefik gateway (`traefik:v3.7.16`) as the only entry: ports bound to `127.0.0.1`, HTTP → HTTPS, routes by `Host(PUBLIC_HOST)` + path, `/health/<svc>/*` rewritten to each service's `/health/*`; services and DBs publish no ports
+  - [x] users-svc writes blocked at the gateway (only GET/HEAD routed)
+  - [ ] Trusted local TLS (mkcert) instead of Traefik's self-signed default cert
+  - [ ] Postgres backups (`pg_dump` per DB to a folder outside the volumes) and a tested restore
+  - [ ] Health check through the gateway on a schedule (a script or a small uptime container hitting `/health/<svc>/ready`)
+  - Secrets: dev default passwords are fine locally; real ones go in an untracked `.env` on whatever machine runs it, never in a repo
+- [ ] CD (local first): merge to `main` deploys automatically, checks `/health/ready` through the gateway, one-command rollback to the previous image tag
+  - Open: how a push reaches this Mac: a self-hosted GitHub Actions runner here, or a pull-based updater that watches GHCR/the platform repo
+- [ ] Gateway benchmark: Traefik vs NGINX on the same machine (after CD; locally first)
   - Why both gateways: to benchmark them against each other. Keep the gateway swappable: same services and routes, gateway picked per deploy (e.g. compose profiles), services never depend on which one runs.
-  - Decided: region Mumbai (`ap-south-1`).
-  - Decided: ARM (Graviton `t4g`) instance. CI runs on native ARM runners (`ubuntu-24.04-arm`) and builds `linux/arm64` only (server and dev Macs are both ARM).
-  - Decided: access via AWS SSM only (instance role with `AmazonSSMManagedInstanceCore`); no SSH port, no key pairs. Security group inbound: 80/443 only. CD will reach the server through SSM too (GitHub OIDC → AWS role, no long-lived AWS keys).
-  - Decided: free DuckDNS hostname, IP updated on boot, so no Elastic IP is needed.
-  - [ ] Platform compose runs pinned registry images (`ghcr.io/ankurvapte/<svc>:<full sha>`, no `build:`); secrets live on the server, never in a repo
-  - [ ] Reverse proxy / API gateway (NGINX or Traefik) with TLS as the only public entry; DBs never exposed
-  - [ ] Lock down users-svc writes before going public (no auth yet): block or protect them at the gateway
-  - [ ] Nightly Postgres backups off the server, and a tested restore
-  - [ ] External uptime check on `/health/ready` through the gateway
-- [ ] CD: merge to `main` deploys automatically, checks `/health/ready`, one-command rollback to the previous image tag
-- [ ] Gateway benchmark: Traefik vs NGINX on the same server (after CD)
   - [ ] NGINX gateway with the same routes, TLS and users-svc write block as Traefik
   - [ ] CD can deploy with either gateway
-  - [ ] Fair test: same instance, same image tags, same endpoints, HTTPS on; load generated from a separate machine (e.g. `k6` or `oha`), warm-up run first, several runs each
+  - [ ] Fair test: same machine, same image tags, same endpoints, HTTPS on; warm-up run first, several runs each. Locally the load tool (e.g. `k6` or `oha`) shares the Mac's CPU, so compare the two gateways with each other, not with real-server numbers; repeat on AWS later
   - [ ] Compare throughput (req/s), latency p50/p95/p99, error rate, gateway CPU/RAM; also an empty baseline (a static response) to separate gateway cost from app cost
   - [ ] Write up the results
+- [ ] Later (parked 2026-10-25): deploy to AWS. Reuses the local setup; only the host, TLS and secrets change
+  - Decided (2026-10-25): AWS, one small VM that can be stopped when unused (cost matters); lean and fast deploys. Own domain deferred (user's choice); start on a free hostname (e.g. DuckDNS or sslip.io) with real Let's Encrypt TLS, and keep the hostname in one env var so switching to a bought domain later is a config change. Traefik first; NGINX later as a second gateway option, and CD should be able to deploy with either.
+  - Decided: ARM (Graviton `t4g`) instance. CI runs on native ARM runners (`ubuntu-24.04-arm`) and builds `linux/arm64` only (server and dev Macs are both ARM).
+  - Decided: access via AWS SSM only (instance role with `AmazonSSMManagedInstanceCore`); no SSH port, no key pairs. Security group inbound: 80/443 only. CD will reach the server through SSM too (GitHub OIDC → AWS role, no long-lived AWS keys).
+  - Parked: DuckDNS hostname (agreed), instance size (`t4g.small` 2 GB recommended vs `t4g.medium` 4 GB, undecided), region Mumbai `ap-south-1` (agreed). Revisit all three when this step starts.
+  - [ ] Secrets live on the server (untracked `.env`), never in a repo
+  - [ ] Traefik with Let's Encrypt TLS for the DuckDNS hostname (`PUBLIC_HOST`); ports 80/443 public instead of `127.0.0.1`
+  - [ ] Nightly Postgres backups off the server, and a tested restore
+  - [ ] External uptime check on `/health/<svc>/ready` through the gateway
+  - [ ] CD deploys to the server through SSM
 - [ ] News ingestion from external sources via Kafka (once CD works)
-  - [ ] Check server memory first: Kafka wants about 1 GB more RAM; resize the server if needed
+  - [ ] Check memory first: Kafka wants about 1 GB more RAM (Docker Desktop's memory limit locally; the instance size on AWS)
   - [ ] Kafka (single KRaft broker, no ZooKeeper) in `news-app-platform` compose; topics `articles.ingested` + `articles.ingested.dlq`
   - [ ] New `ingest-svc`: polls external sources (RSS first, then a news API) on a schedule, normalizes items and publishes them keyed by source URL. Owns no article data.
   - [ ] articles-svc consumer: idempotent upsert into its own Postgres (unique source URL), manual offset commit after the DB write, bad messages go to the DLQ
