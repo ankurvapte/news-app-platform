@@ -21,9 +21,8 @@ Add new services to its compose file and README: an `x-<svc>-image` anchor with 
 full-SHA tag, `traefik.*` labels for its routes (and `/health/<svc>/*`), no host ports.
 
 `news-app-platform/docs/architecture.svg` is the master architecture diagram
-(solid = built, dashed = planned). Update it, and re-render `architecture.png`,
-in the same change whenever services, images, the gateway, networks, CI/CD or the
-roadmap change.
+(solid = built, dashed = planned). Update it (and re-render `architecture.png`)
+only when the user explicitly asks; never as a side effect of other changes.
 
 Services never read each other's data. A future cross-service call (e.g.
 articles → users for author details) goes over HTTP with a timeout and

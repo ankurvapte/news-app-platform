@@ -15,7 +15,7 @@ Source: [`docs/architecture.svg`](docs/architecture.svg), picture: [`docs/archit
 |---|---|
 | `CLAUDE.md` | Shared architecture rules, container checklist and roadmap for every service |
 | `docker-compose.yml` | Runs the whole app from pinned GHCR images behind the Traefik gateway |
-| `docs/architecture.svg` | Master architecture diagram (+ `.png`); update it with every architecture change |
+| `docs/architecture.svg` | Master architecture diagram (+ `.png`), updated on request |
 | `scripts/make-local-cert.sh` | Creates the trusted local HTTPS certificate (mkcert) in `certs/` |
 | `scripts/pg-backup.sh` | Backup job (runs inside `articles-backup` / `users-backup`) |
 | `scripts/test-restore.sh`, `scripts/restore.sh` | Prove a backup restores; restore one into the live database |
