@@ -1,0 +1,362 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1310" width="1600" height="1310" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title>News app: master architecture</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+    <marker id="arrow-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/>
+    </marker>
+    <style>
+      .title { font-size: 26px; font-weight: 700; fill: #0f172a; }
+      .subtitle { font-size: 14px; fill: #475569; }
+      .h { font-size: 16px; font-weight: 700; fill: #0f172a; }
+      .b { font-size: 13px; font-weight: 600; fill: #0f172a; }
+      .t { font-size: 12px; fill: #334155; }
+      .s { font-size: 11px; fill: #64748b; }
+      .lbl { font-size: 12px; font-weight: 600; fill: #334155; }
+      .zone-lbl { font-size: 12px; font-weight: 700; letter-spacing: .3px; }
+      .line { stroke: #334155; stroke-width: 1.6; fill: none; }
+      .line-planned { stroke: #94a3b8; stroke-width: 1.6; fill: none; stroke-dasharray: 6 4; }
+      .planned { fill: #f8fafc; stroke: #94a3b8; stroke-width: 1.5; stroke-dasharray: 6 4; }
+      .planned-t { font-size: 12px; fill: #64748b; }
+      .planned-b { font-size: 13px; font-weight: 600; fill: #475569; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1310" fill="#ffffff"/>
+
+  <!-- Title + legend -->
+  <text x="40" y="46" class="title">News app — master architecture</text>
+  <text x="40" y="72" class="subtitle">As of 2026-10-25 · flow: code → CI → registry → local deploy</text>
+  <rect x="1130" y="34" width="34" height="18" rx="4" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="1172" y="48" class="t">built &amp; running</text>
+  <rect x="1290" y="34" width="34" height="18" rx="4" class="planned"/>
+  <text x="1332" y="48" class="t">planned (roadmap)</text>
+  <line x1="1130" y1="70" x2="1164" y2="70" class="line" marker-end="url(#arrow)"/>
+  <text x="1172" y="74" class="t">data / request flow</text>
+
+  <!-- ===================== ROW 1 ===================== -->
+  <!-- ① Dev Mac -->
+  <rect x="40" y="100" width="380" height="235" rx="12" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <text x="60" y="128" class="h">① Your Mac — code (3 git repos)</text>
+  <rect x="60" y="145" width="340" height="40" rx="8" fill="#ffffff" stroke="#64748b"/>
+  <text x="74" y="162" class="b">articles-svc</text>
+  <text x="74" y="177" class="s">FastAPI · Python 3.12 · news articles (read-only)</text>
+  <rect x="60" y="193" width="340" height="40" rx="8" fill="#ffffff" stroke="#64748b"/>
+  <text x="74" y="210" class="b">users-svc</text>
+  <text x="74" y="225" class="s">FastAPI · Python 3.12 · user accounts (read + write)</text>
+  <rect x="60" y="241" width="340" height="40" rx="8" fill="#ffffff" stroke="#64748b"/>
+  <text x="74" y="258" class="b">news-app-platform</text>
+  <text x="74" y="273" class="s">docker-compose · gateway · CLAUDE.md roadmap</text>
+  <text x="60" y="310" class="t">Each service: own repo, own Dockerfile, own tests,</text>
+  <text x="60" y="326" class="t">own compose for dev (Swagger on :8090 / :8081)</text>
+
+  <!-- arrow push -->
+  <line x1="420" y1="215" x2="496" y2="215" class="line" marker-end="url(#arrow)"/>
+  <text x="430" y="206" class="lbl">git push</text>
+
+  <!-- ② GitHub -->
+  <rect x="500" y="100" width="680" height="235" rx="12" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
+  <text x="520" y="128" class="h">② GitHub — Actions CI  (.github/workflows/ci.yml, same in each service repo)</text>
+  <!-- pipeline chips -->
+  <g>
+    <rect x="520" y="150" width="145" height="74" rx="8" fill="#ffffff" stroke="#7c3aed"/>
+    <text x="534" y="172" class="b">job: test</text>
+    <text x="534" y="190" class="s">pytest -ra</text>
+    <text x="534" y="205" class="s">+ Postgres service</text>
+    <text x="534" y="218" class="s">container</text>
+
+    <rect x="685" y="150" width="145" height="74" rx="8" fill="#ffffff" stroke="#7c3aed"/>
+    <text x="699" y="172" class="b">job: image → build</text>
+    <text x="699" y="190" class="s">linux/arm64</text>
+    <text x="699" y="205" class="s">native ARM runner</text>
+    <text x="699" y="218" class="s">gha layer cache</text>
+
+    <rect x="850" y="150" width="145" height="74" rx="8" fill="#ffffff" stroke="#7c3aed"/>
+    <text x="864" y="172" class="b">smoke test</text>
+    <text x="864" y="190" class="s">docker run image</text>
+    <text x="864" y="205" class="s">/health/ready = 200</text>
+    <text x="864" y="218" class="s">within 30 s</text>
+
+    <rect x="1015" y="150" width="145" height="74" rx="8" fill="#ffffff" stroke="#7c3aed"/>
+    <text x="1029" y="172" class="b">push</text>
+    <text x="1029" y="190" class="s">tag = full commit SHA</text>
+    <text x="1029" y="205" class="s">+ :main on main</text>
+    <text x="1029" y="218" class="s">GITHUB_TOKEN</text>
+  </g>
+  <line x1="665" y1="187" x2="683" y2="187" class="line" marker-end="url(#arrow)"/>
+  <line x1="830" y1="187" x2="848" y2="187" class="line" marker-end="url(#arrow)"/>
+  <line x1="995" y1="187" x2="1013" y2="187" class="line" marker-end="url(#arrow)"/>
+  <text x="520" y="250" class="t">Trigger: every push (any branch) + manual "Run workflow" · ~1.5 min</text>
+  <text x="520" y="268" class="t">needs: test → no image is pushed unless every test passed</text>
+  <text x="520" y="286" class="t">permissions: read-only by default; only the image job may write packages</text>
+  <text x="520" y="304" class="t">concurrency: a newer push cancels the older run on the same branch</text>
+  <text x="520" y="322" class="s">(temporary "Show github context" step kept for the YAML learning session)</text>
+
+  <!-- arrow docker push -->
+  <line x1="1180" y1="215" x2="1236" y2="215" class="line" marker-end="url(#arrow)"/>
+  <text x="1183" y="206" class="lbl">push</text>
+
+  <!-- ③ GHCR -->
+  <rect x="1240" y="100" width="320" height="235" rx="12" fill="#f0fdfa" stroke="#0d9488" stroke-width="1.5"/>
+  <text x="1260" y="128" class="h">③ GHCR — image registry</text>
+  <rect x="1260" y="145" width="280" height="48" rx="8" fill="#ffffff" stroke="#0d9488"/>
+  <text x="1274" y="164" class="b">ghcr.io/ankurvapte/articles-svc</text>
+  <text x="1274" y="182" class="s">:&lt;full sha&gt;  (one per commit)   :main</text>
+  <rect x="1260" y="201" width="280" height="48" rx="8" fill="#ffffff" stroke="#0d9488"/>
+  <text x="1274" y="220" class="b">ghcr.io/ankurvapte/users-svc</text>
+  <text x="1274" y="238" class="s">:&lt;full sha&gt;  (one per commit)   :main</text>
+  <text x="1260" y="274" class="t">Public (no secrets inside; pull needs no token)</text>
+  <text x="1260" y="292" class="t">Image: python:3.12-slim, multi-stage, non-root,</text>
+  <text x="1260" y="310" class="t">app + migrations + seed data, HEALTHCHECK</text>
+  <text x="1260" y="326" class="s">SHA tags never move → deploy &amp; rollback by SHA</text>
+
+  <!-- arrow pull into deploy -->
+  <line x1="1400" y1="335" x2="1400" y2="402" class="line" marker-end="url(#arrow)"/>
+  <rect x="1410" y="350" width="150" height="36" rx="6" fill="#ffffff"/>
+  <text x="1414" y="364" class="lbl">docker compose pull</text>
+  <text x="1414" y="380" class="s">pinned SHA (x-&lt;svc&gt;-image)</text>
+
+  <!-- ===================== ROW 2: local deploy ===================== -->
+  <rect x="40" y="405" width="1520" height="590" rx="14" fill="#fcfcfd" stroke="#0f172a" stroke-width="1.8"/>
+  <text x="60" y="434" class="h">④ Your Mac — Docker Desktop: local deploy  (news-app-platform/docker-compose.yml, project "news-app")</text>
+  <text x="60" y="453" class="s">docker compose up -d  ·  ~6 s redeploy  ·  only the gateway publishes ports, and only on 127.0.0.1 (nothing reachable from your network)</text>
+
+  <!-- Client -->
+  <rect x="65" y="560" width="160" height="80" rx="10" fill="#ffffff" stroke="#334155" stroke-width="1.5"/>
+  <text x="80" y="590" class="b">Browser / curl</text>
+  <text x="80" y="608" class="s">https://localhost/…</text>
+  <text x="80" y="623" class="s">(X-Request-ID optional)</text>
+
+  <!-- docker.sock -->
+  <rect x="290" y="480" width="210" height="52" rx="8" fill="#ffffff" stroke="#64748b"/>
+  <text x="304" y="502" class="b">docker.sock  (read-only)</text>
+  <text x="304" y="520" class="s">Docker API, watched live</text>
+  <line x1="500" y1="506" x2="598" y2="530" class="line" marker-end="url(#arrow)"/>
+  <text x="290" y="550" class="s">→ Traefik discovers routes from labels</text>
+
+  <!-- client → gateway -->
+  <line x1="225" y1="600" x2="598" y2="600" class="line" marker-end="url(#arrow)"/>
+  <text x="250" y="590" class="lbl">HTTPS  127.0.0.1:443</text>
+  <text x="250" y="618" class="s">http :80 → 301 redirect to https</text>
+
+  <!-- services network zone -->
+  <rect x="575" y="470" width="560" height="330" rx="12" fill="#fff7ed" fill-opacity=".45" stroke="#ea580c" stroke-width="1.3" stroke-dasharray="3 3"/>
+  <text x="590" y="490" class="zone-lbl" fill="#c2410c">network: services</text>
+
+  <!-- Gateway -->
+  <rect x="600" y="505" width="250" height="275" rx="10" fill="#ffffff" stroke="#ea580c" stroke-width="2"/>
+  <text x="615" y="530" class="b">gateway — Traefik v3.7.16</text>
+  <text x="615" y="546" class="s">reverse proxy · the only entry point</text>
+  <line x1="615" y1="556" x2="835" y2="556" stroke="#fed7aa"/>
+  <text x="615" y="575" class="t">Routers (Host = PUBLIC_HOST)</text>
+  <text x="623" y="593" class="s">/api/v1/articles, /api/v1/categories</text>
+  <text x="623" y="609" class="s">/api/v1/users  — GET/HEAD only</text>
+  <text x="623" y="625" class="s">   POST/PATCH → 404 (writes blocked)</text>
+  <text x="623" y="641" class="s">/health/&lt;svc&gt;/* → rewrite → /health/*</text>
+  <text x="623" y="657" class="s">anything else / other host → 404</text>
+  <line x1="615" y1="667" x2="835" y2="667" stroke="#fed7aa"/>
+  <text x="615" y="686" class="t">TLS: mkcert cert (file provider)</text>
+  <text x="615" y="704" class="t">JSON access logs (Overhead ≈ 36 µs)</text>
+  <text x="615" y="722" class="t">dashboard  127.0.0.1:8088</text>
+  <text x="615" y="740" class="t">healthcheck: traefik /ping</text>
+  <text x="615" y="766" class="s">ports 80 · 443 · 8088 → 127.0.0.1 only</text>
+
+  <!-- articles-svc -->
+  <rect x="900" y="510" width="215" height="95" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+  <text x="914" y="534" class="b">articles-svc</text>
+  <text x="914" y="552" class="s">image pinned by SHA · :8080</text>
+  <text x="914" y="568" class="s">no host port</text>
+  <text x="914" y="584" class="s">/api/v1 · /health/live · /ready</text>
+  <text x="914" y="598" class="s">JSON logs · X-Request-ID</text>
+
+  <!-- users-svc -->
+  <rect x="900" y="680" width="215" height="95" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+  <text x="914" y="704" class="b">users-svc</text>
+  <text x="914" y="722" class="s">image pinned by SHA · :8080</text>
+  <text x="914" y="738" class="s">no host port</text>
+  <text x="914" y="754" class="s">/api/v1 · /health/live · /ready</text>
+  <text x="914" y="768" class="s">JSON logs · X-Request-ID</text>
+
+  <!-- gateway → services -->
+  <line x1="850" y1="580" x2="898" y2="560" class="line" marker-end="url(#arrow)"/>
+  <line x1="850" y1="700" x2="898" y2="725" class="line" marker-end="url(#arrow)"/>
+  <text x="852" y="632" class="s">plain</text>
+  <text x="852" y="646" class="s">HTTP</text>
+
+  <!-- articles-backend zone -->
+  <rect x="1165" y="470" width="375" height="160" rx="12" fill="#f0fdf4" fill-opacity=".6" stroke="#16a34a" stroke-width="1.3" stroke-dasharray="3 3"/>
+  <text x="1180" y="490" class="zone-lbl" fill="#15803d">network: articles-backend (internal)</text>
+  <rect x="1180" y="505" width="170" height="58" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="1.8"/>
+  <text x="1194" y="527" class="b">articles-db</text>
+  <text x="1194" y="544" class="s">postgres:17-alpine</text>
+  <text x="1194" y="557" class="s">no host port</text>
+  <rect x="1365" y="505" width="160" height="58" rx="8" fill="#ffffff" stroke="#16a34a"/>
+  <text x="1378" y="527" class="b">articles-migrate</text>
+  <text x="1378" y="544" class="s">alembic upgrade head</text>
+  <text x="1378" y="557" class="s">one-shot, exits 0</text>
+  <line x1="1365" y1="534" x2="1352" y2="534" class="line" marker-end="url(#arrow)"/>
+  <!-- volume cylinder -->
+  <g>
+    <ellipse cx="1265" cy="582" rx="70" ry="7" fill="#dcfce7" stroke="#16a34a"/>
+    <path d="M1195,582 v30 a70,7 0 0 0 140,0 v-30" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="1210" y="606" class="s">vol articles-db-data</text>
+  </g>
+  <line x1="1265" y1="563" x2="1265" y2="575" class="line"/>
+  <text x="1365" y="590" class="s">migrate finishes →</text>
+  <text x="1365" y="604" class="s">then articles-svc starts</text>
+
+  <!-- users-backend zone -->
+  <rect x="1165" y="645" width="375" height="160" rx="12" fill="#f0fdf4" fill-opacity=".6" stroke="#16a34a" stroke-width="1.3" stroke-dasharray="3 3"/>
+  <text x="1180" y="665" class="zone-lbl" fill="#15803d">network: users-backend (internal)</text>
+  <rect x="1180" y="680" width="170" height="58" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="1.8"/>
+  <text x="1194" y="702" class="b">users-db</text>
+  <text x="1194" y="719" class="s">postgres:17-alpine</text>
+  <text x="1194" y="732" class="s">no host port</text>
+  <rect x="1365" y="680" width="160" height="58" rx="8" fill="#ffffff" stroke="#16a34a"/>
+  <text x="1378" y="702" class="b">users-migrate</text>
+  <text x="1378" y="719" class="s">alembic upgrade head</text>
+  <text x="1378" y="732" class="s">one-shot, exits 0</text>
+  <line x1="1365" y1="709" x2="1352" y2="709" class="line" marker-end="url(#arrow)"/>
+  <g>
+    <ellipse cx="1265" cy="757" rx="70" ry="7" fill="#dcfce7" stroke="#16a34a"/>
+    <path d="M1195,757 v30 a70,7 0 0 0 140,0 v-30" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="1216" y="781" class="s">vol users-db-data</text>
+  </g>
+  <line x1="1265" y1="738" x2="1265" y2="750" class="line"/>
+
+  <!-- services → dbs -->
+  <line x1="1115" y1="545" x2="1178" y2="534" class="line" marker-end="url(#arrow)"/>
+  <line x1="1115" y1="728" x2="1178" y2="709" class="line" marker-end="url(#arrow)"/>
+  <text x="1124" y="562" class="s">SQL</text>
+  <text x="1124" y="742" class="s">SQL</text>
+
+  <!-- Trust / certificates row -->
+  <rect x="65" y="840" width="210" height="80" rx="10" fill="#fffbeb" stroke="#d97706" stroke-width="1.6"/>
+  <text x="79" y="864" class="b">mkcert local CA</text>
+  <text x="79" y="882" class="s">~/Library/…/mkcert (CAROOT)</text>
+  <text x="79" y="897" class="s">rootCA-key.pem = keep secret</text>
+  <text x="79" y="912" class="s">mkcert -install → macOS trust store</text>
+
+  <rect x="320" y="840" width="225" height="80" rx="10" fill="#fffbeb" stroke="#d97706" stroke-width="1.6"/>
+  <text x="334" y="864" class="b">certs/  (git-ignored)</text>
+  <text x="334" y="882" class="s">local.pem · local-key.pem · tls.yml</text>
+  <text x="334" y="897" class="s">scripts/make-local-cert.sh</text>
+  <text x="334" y="912" class="s">empty → Traefik self-signed fallback</text>
+
+  <line x1="275" y1="880" x2="318" y2="880" class="line" marker-end="url(#arrow)"/>
+  <text x="280" y="872" class="s">signs</text>
+  <line x1="545" y1="848" x2="612" y2="783" class="line" marker-end="url(#arrow)"/>
+  <text x="405" y="830" class="s">mounted :ro · hot reload</text>
+  <line x1="145" y1="840" x2="145" y2="642" class="line" stroke-dasharray="2 3" marker-end="url(#arrow)"/>
+  <text x="152" y="760" class="s">browser trusts</text>
+  <text x="152" y="774" class="s">the cert via CA</text>
+
+  <!-- Planned inside deploy -->
+  <rect x="625" y="830" width="245" height="70" rx="10" class="planned"/>
+  <text x="639" y="854" class="planned-b">NGINX gateway (planned)</text>
+  <text x="639" y="872" class="planned-t">same routes, TLS, write block</text>
+  <text x="639" y="888" class="planned-t">swap via profiles → benchmark</text>
+
+  <rect x="900" y="830" width="215" height="70" rx="10" class="planned"/>
+  <text x="914" y="854" class="planned-b">Scheduled health check</text>
+  <text x="914" y="872" class="planned-t">hits /health/&lt;svc&gt;/ready</text>
+  <text x="914" y="888" class="planned-t">through the gateway</text>
+  <line x1="1000" y1="830" x2="840" y2="782" class="line-planned" marker-end="url(#arrow-gray)"/>
+
+  <rect x="1165" y="830" width="375" height="70" rx="10" class="planned"/>
+  <text x="1179" y="854" class="planned-b">Postgres backups + tested restore (planned)</text>
+  <text x="1179" y="872" class="planned-t">pg_dump per DB → backups/ folder outside volumes</text>
+  <text x="1179" y="888" class="planned-t">restore into a fresh DB to prove the backup works</text>
+  <line x1="1520" y1="830" x2="1520" y2="618" class="line-planned" marker-end="url(#arrow-gray)"/>
+  <line x1="1505" y1="830" x2="1505" y2="793" class="line-planned" marker-end="url(#arrow-gray)"/>
+
+  <text x="60" y="960" class="t">Secrets: dev default DB passwords locally; real ones only in an untracked .env on the machine that runs it — never in a repo or image.</text>
+  <text x="60" y="980" class="t">Isolation: the gateway joins only "services"; each DB is on its own internal network with only its service + migrate job (no internet, not resolvable by others).</text>
+
+  <!-- ===================== ROW 3 ===================== -->
+  <!-- Clean architecture -->
+  <rect x="40" y="1025" width="610" height="255" rx="12" fill="#f8fafc" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="60" y="1053" class="h">⑤ Inside each service — clean architecture</text>
+  <text x="60" y="1071" class="s">dependencies point inward only</text>
+
+  <rect x="60" y="1090" width="150" height="62" rx="8" fill="#ffffff" stroke="#2563eb"/>
+  <text x="74" y="1112" class="b">api/</text>
+  <text x="74" y="1128" class="s">routes · schemas</text>
+  <text x="74" y="1142" class="s">health · thin HTTP</text>
+
+  <rect x="250" y="1090" width="160" height="62" rx="8" fill="#ffffff" stroke="#2563eb"/>
+  <text x="264" y="1112" class="b">application/</text>
+  <text x="264" y="1128" class="s">&lt;Thing&gt;Service use cases</text>
+  <text x="264" y="1142" class="s">ports.py (interfaces)</text>
+
+  <rect x="450" y="1090" width="180" height="62" rx="8" fill="#ffffff" stroke="#2563eb"/>
+  <text x="464" y="1112" class="b">domain/</text>
+  <text x="464" y="1128" class="s">entities · business rules</text>
+  <text x="464" y="1142" class="s">pure Python</text>
+
+  <line x1="210" y1="1121" x2="248" y2="1121" class="line" marker-end="url(#arrow)"/>
+  <line x1="410" y1="1121" x2="448" y2="1121" class="line" marker-end="url(#arrow)"/>
+
+  <rect x="250" y="1190" width="160" height="62" rx="8" fill="#ffffff" stroke="#2563eb"/>
+  <text x="264" y="1212" class="b">infrastructure/</text>
+  <text x="264" y="1228" class="s">JSON | Postgres repo</text>
+  <text x="264" y="1242" class="s">picked by DATABASE_URL</text>
+  <line x1="330" y1="1190" x2="330" y2="1154" class="line" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <text x="336" y="1176" class="s">implements ports</text>
+
+  <rect x="60" y="1190" width="150" height="62" rx="8" fill="#ffffff" stroke="#2563eb"/>
+  <text x="74" y="1212" class="b">main.py</text>
+  <text x="74" y="1228" class="s">wires layers · errors</text>
+  <text x="74" y="1242" class="s">→ {error,message,id}</text>
+
+  <rect x="450" y="1190" width="180" height="62" rx="8" fill="#ffffff" stroke="#16a34a"/>
+  <text x="464" y="1212" class="b">migrations/</text>
+  <text x="464" y="1228" class="s">Alembic, plain SQL</text>
+  <text x="464" y="1242" class="s">expand → contract</text>
+
+  <!-- Roadmap ahead -->
+  <rect x="680" y="1025" width="880" height="255" rx="12" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="700" y="1053" class="h" fill="#475569">⑥ Roadmap ahead (planned)</text>
+
+  <rect x="700" y="1075" width="190" height="120" rx="10" class="planned"/>
+  <text x="714" y="1099" class="planned-b">CD (local first)</text>
+  <text x="714" y="1118" class="planned-t">merge to main → deploy</text>
+  <text x="714" y="1134" class="planned-t">check /health/ready</text>
+  <text x="714" y="1150" class="planned-t">1-command rollback</text>
+  <text x="714" y="1176" class="planned-t">open: self-hosted runner</text>
+  <text x="714" y="1190" class="planned-t">or pull-based updater</text>
+
+  <rect x="915" y="1075" width="190" height="120" rx="10" class="planned"/>
+  <text x="929" y="1099" class="planned-b">Gateway benchmark</text>
+  <text x="929" y="1118" class="planned-t">Traefik vs NGINX</text>
+  <text x="929" y="1134" class="planned-t">req/s · p50/p95/p99</text>
+  <text x="929" y="1150" class="planned-t">CPU/RAM · baseline</text>
+  <text x="929" y="1176" class="planned-t">k6 / oha, warm-up,</text>
+  <text x="929" y="1190" class="planned-t">several runs each</text>
+
+  <rect x="1130" y="1075" width="200" height="120" rx="10" class="planned"/>
+  <text x="1144" y="1099" class="planned-b">AWS (parked)</text>
+  <text x="1144" y="1118" class="planned-t">EC2 t4g.small · Mumbai</text>
+  <text x="1144" y="1134" class="planned-t">access via SSM (no SSH)</text>
+  <text x="1144" y="1150" class="planned-t">DuckDNS + Let's Encrypt</text>
+  <text x="1144" y="1176" class="planned-t">ports 80/443 public,</text>
+  <text x="1144" y="1190" class="planned-t">stop it when unused</text>
+
+  <rect x="1355" y="1075" width="185" height="120" rx="10" class="planned"/>
+  <text x="1369" y="1099" class="planned-b">News ingestion</text>
+  <text x="1369" y="1118" class="planned-t">ingest-svc (RSS, APIs)</text>
+  <text x="1369" y="1134" class="planned-t">→ Kafka (KRaft)</text>
+  <text x="1369" y="1150" class="planned-t">→ articles-svc consumer</text>
+  <text x="1369" y="1176" class="planned-t">idempotent upsert,</text>
+  <text x="1369" y="1190" class="planned-t">DLQ for bad messages</text>
+
+  <line x1="890" y1="1135" x2="913" y2="1135" class="line-planned" marker-end="url(#arrow-gray)"/>
+  <line x1="1105" y1="1135" x2="1128" y2="1135" class="line-planned" marker-end="url(#arrow-gray)"/>
+  <line x1="1330" y1="1135" x2="1353" y2="1135" class="line-planned" marker-end="url(#arrow-gray)"/>
+
+  <text x="700" y="1228" class="planned-t">Also: YAML &amp; GitHub Actions learning session (paused; resume at Part 2 exercises)</text>
+  <text x="700" y="1246" class="planned-t">Also: skills for the best practices · trusted local TLS done (mkcert -install pending on this Mac)</text>
+  <text x="700" y="1264" class="planned-t">Kafka needs ~1 GB more RAM (Docker Desktop limit locally, t4g.medium on AWS)</text>
+</svg>

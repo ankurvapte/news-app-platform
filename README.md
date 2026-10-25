@@ -4,11 +4,19 @@ System-level repo for the news app: everything that belongs to the app as a
 whole rather than to one service. Services never depend on this repo; this
 repo depends on them.
 
+![News app architecture](docs/architecture.svg)
+
+Master diagram of the whole system (code → CI → registry → local deploy, plus
+what's planned). Solid boxes are built and running; dashed boxes are planned.
+Source: [`docs/architecture.svg`](docs/architecture.svg), picture: [`docs/architecture.png`](docs/architecture.png).
+
 ## What lives here
 | Path | Purpose |
 |---|---|
 | `CLAUDE.md` | Shared architecture rules, container checklist and roadmap for every service |
 | `docker-compose.yml` | Runs the whole app from pinned GHCR images behind the Traefik gateway |
+| `docs/architecture.svg` | Master architecture diagram (+ `.png`); update it with every architecture change |
+| `scripts/make-local-cert.sh` | Creates the trusted local HTTPS certificate (mkcert) in `certs/` |
 | NGINX gateway | *(planned)* Second gateway option, to benchmark against Traefik |
 | Kafka (in `docker-compose.yml`) | *(planned)* Message broker between `ingest-svc` and articles-svc for news from external sources |
 

@@ -20,6 +20,11 @@ from pinned GHCR images behind the Traefik gateway. Services never depend on it.
 Add new services to its compose file and README: an `x-<svc>-image` anchor with a
 full-SHA tag, `traefik.*` labels for its routes (and `/health/<svc>/*`), no host ports.
 
+`news-app-platform/docs/architecture.svg` is the master architecture diagram
+(solid = built, dashed = planned). Update it, and re-render `architecture.png`,
+in the same change whenever services, images, the gateway, networks, CI/CD or the
+roadmap change.
+
 Services never read each other's data. A future cross-service call (e.g.
 articles → users for author details) goes over HTTP with a timeout and
 forwards `X-Request-ID`.
