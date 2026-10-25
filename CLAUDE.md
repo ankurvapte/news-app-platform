@@ -73,7 +73,7 @@ Clean architecture; dependencies point inward only:
   - [ ] Reading `ci.yml` and `docker-compose.yml` line by line; then write a small workflow from scratch and check it with `actionlint`
   - [ ] Where to look things up: workflow syntax, events and contexts docs, action READMEs/`action.yml`, starter-workflows, VS Code GitHub Actions + YAML extensions
 - [ ] Deploy to a web server
-  - Decided (2026-10-25): AWS, one small VM that can be stopped when unused (cost matters); lean and fast deploys. Domain still to buy. Traefik first; NGINX later as a second gateway option, and CD should be able to deploy with either.
+  - Decided (2026-10-25): AWS, one small VM that can be stopped when unused (cost matters); lean and fast deploys. Own domain deferred (user's choice); start on a free hostname (e.g. DuckDNS or sslip.io) with real Let's Encrypt TLS, and keep the hostname in one env var so switching to a bought domain later is a config change. Traefik first; NGINX later as a second gateway option, and CD should be able to deploy with either.
   - Why both gateways: to benchmark them against each other. Keep the gateway swappable: same services and routes, gateway picked per deploy (e.g. compose profiles), services never depend on which one runs.
   - Open: ARM (Graviton, cheaper) needs CI to build `linux/arm64` images too; CI builds only `linux/amd64` today.
   - [ ] Platform compose runs pinned registry images (`ghcr.io/ankurvapte/<svc>:<full sha>`, no `build:`); secrets live on the server, never in a repo
@@ -81,13 +81,13 @@ Clean architecture; dependencies point inward only:
   - [ ] Lock down users-svc writes before going public (no auth yet): block or protect them at the gateway
   - [ ] Nightly Postgres backups off the server, and a tested restore
   - [ ] External uptime check on `/health/ready` through the gateway
-- [ ] Gateway benchmark: Traefik vs NGINX on the same server
+- [ ] CD: merge to `main` deploys automatically, checks `/health/ready`, one-command rollback to the previous image tag
+- [ ] Gateway benchmark: Traefik vs NGINX on the same server (after CD)
   - [ ] NGINX gateway with the same routes, TLS and users-svc write block as Traefik
   - [ ] CD can deploy with either gateway
   - [ ] Fair test: same instance, same image tags, same endpoints, HTTPS on; load generated from a separate machine (e.g. `k6` or `oha`), warm-up run first, several runs each
   - [ ] Compare throughput (req/s), latency p50/p95/p99, error rate, gateway CPU/RAM; also an empty baseline (a static response) to separate gateway cost from app cost
   - [ ] Write up the results
-- [ ] CD: merge to `main` deploys automatically, checks `/health/ready`, one-command rollback to the previous image tag
 - [ ] News ingestion from external sources via Kafka (once CD works)
   - [ ] Check server memory first: Kafka wants about 1 GB more RAM; resize the server if needed
   - [ ] Kafka (single KRaft broker, no ZooKeeper) in `news-app-platform` compose; topics `articles.ingested` + `articles.ingested.dlq`
