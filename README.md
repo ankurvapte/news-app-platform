@@ -19,6 +19,7 @@ Source: [`docs/architecture.svg`](docs/architecture.svg), picture: [`docs/archit
 | `scripts/make-local-cert.sh` | Creates the trusted local HTTPS certificate (mkcert) in `certs/` |
 | `scripts/pg-backup.sh` | Backup job (runs inside `articles-backup` / `users-backup`) |
 | `scripts/test-restore.sh`, `scripts/restore.sh` | Prove a backup restores; restore one into the live database |
+| `scripts/uptime-check.sh` | Scheduled health check through the gateway (runs inside `uptime-check`) |
 | NGINX gateway | *(planned)* Second gateway option, to benchmark against Traefik |
 | Kafka (in `docker-compose.yml`) | *(planned)* Message broker between `ingest-svc` and articles-svc for news from external sources |
 
@@ -103,6 +104,32 @@ docker compose logs users-backup                       # JSON lines: backup writ
 ```
 `restore.sh` stops `users-svc` (a few seconds of 503/404 at the gateway), restores
 in a single transaction (a failed restore leaves the old data), then starts it again.
+
+## Health check through the gateway
+```
+ uptime-check ──every 60 s──▶ https://localhost/health/articles/ready ─┐
+ (curl, own container)        https://localhost/health/users/ready    ─┤
+                                     │ connects to the gateway container,
+                                     ▼ same host name + TLS as a real client
+                              gateway ─▶ articles-svc / users-svc ─▶ DB readiness
+```
+- `uptime-check` (curlimages/curl) checks every service in `CHECK_SERVICES` every
+  `CHECK_INTERVAL_SECONDS` (60), through the gateway, verifying the TLS certificate
+  with mkcert's CA (`certs/rootCA.pem`). A broken gateway, route, certificate,
+  service or database all show up as "down".
+- `docker compose ps` shows `uptime-check` as **healthy** only while every service
+  answered 200 on the last round; **unhealthy** means something is down.
+- Logs (JSON) stay quiet while all is well: `ERROR service is down` when a service
+  goes down, `WARNING service still down` on each further failed check,
+  `INFO service is back up` when it recovers.
+
+```bash
+docker compose ps uptime-check                   # healthy / unhealthy
+docker compose logs -f uptime-check              # down / back up events
+CHECK_INTERVAL_SECONDS=5 docker compose up -d uptime-check   # check faster while testing
+```
+It runs on the same machine as the app, so it can't report a dead Mac or Docker;
+the external uptime check on AWS covers that later.
 
 ## Deploy a new version
 1. Push to a service repo; its CI tests, builds and pushes `ghcr.io/ankurvapte/<svc>:<full sha>`.

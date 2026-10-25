@@ -78,13 +78,13 @@ Clean architecture; dependencies point inward only:
   - [ ] Expressions and contexts: `${{ }}` vs `$VAR`, the `github` context (using the real values from the "Show github context" step), `steps.<id>.outputs`, secrets
   - [ ] Reading `ci.yml` and `docker-compose.yml` line by line; then write a small workflow from scratch and check it with `actionlint`
   - [ ] Where to look things up: workflow syntax, events and contexts docs, action READMEs/`action.yml`, starter-workflows, VS Code GitHub Actions + YAML extensions
-- [ ] Deploy locally (production-like, on this Mac): learn and iterate on deploys without a VM to start or stop (decided 2026-10-25)
+- [x] Deploy locally (production-like, on this Mac): learn and iterate on deploys without a VM to start or stop (decided 2026-10-25)
   - [x] Platform compose runs pinned registry images (`x-<svc>-image` anchors with full-SHA tags, no `build:`)
   - [x] Traefik gateway (`traefik:v3.7.16`) as the only entry: ports bound to `127.0.0.1`, HTTP → HTTPS, routes by `Host(PUBLIC_HOST)` + path, `/health/<svc>/*` rewritten to each service's `/health/*`; services and DBs publish no ports
   - [x] users-svc writes blocked at the gateway (only GET/HEAD routed)
   - [x] Trusted local TLS: `scripts/make-local-cert.sh` (mkcert) writes `certs/` (git-ignored), loaded by Traefik's file provider with hot reload; empty `certs/` falls back to the self-signed default
   - [x] Postgres backups: `<svc>-backup` jobs (postgres:17-alpine, non-root) run `scripts/pg-backup.sh` at start + daily, keep 7, `pg_dump -Fc` to git-ignored `backups/<svc>/` outside the volumes; `scripts/test-restore.sh` proves a dump restores (throwaway DB, row counts match live); `scripts/restore.sh` restores into live in one transaction (tested after simulated damage)
-  - [ ] Health check through the gateway on a schedule (a script or a small uptime container hitting `/health/<svc>/ready`)
+  - [x] Health check through the gateway on a schedule: `uptime-check` container (curlimages/curl, `scripts/uptime-check.sh`) hits `https://PUBLIC_HOST/health/<svc>/ready` via the gateway every 60 s with TLS verified by mkcert's CA; container health = all up; JSON logs on down/still down/back up
   - Secrets: dev default passwords are fine locally; real ones go in an untracked `.env` on whatever machine runs it, never in a repo
 - [ ] CD (local first): merge to `main` deploys automatically, checks `/health/ready` through the gateway, one-command rollback to the previous image tag
   - Open: how a push reaches this Mac: a self-hosted GitHub Actions runner here, or a pull-based updater that watches GHCR/the platform repo

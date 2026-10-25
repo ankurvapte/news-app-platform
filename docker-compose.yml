@@ -78,6 +78,32 @@ services:
     networks: [services]
     restart: unless-stopped
 
+  # Scheduled health check through the gateway: the same path a client takes
+  # (host name, TLS, routing), so it catches a broken gateway too. Its own
+  # health shows the result in `docker compose ps`; details in its JSON logs.
+  uptime-check:
+    image: curlimages/curl:8.23.0
+    init: true
+    entrypoint: ["uptime-check"]
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:-localhost}
+      CHECK_SERVICES: articles users
+      CHECK_INTERVAL_SECONDS: ${CHECK_INTERVAL_SECONDS:-60}
+    volumes:
+      - ./scripts/uptime-check.sh:/usr/local/bin/uptime-check:ro
+      - ./certs:/certs:ro
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/all-up"]
+      interval: 15s
+      timeout: 3s
+      retries: 1
+      start_period: 15s
+    depends_on:
+      gateway:
+        condition: service_started
+    networks: [services]
+    restart: unless-stopped
+
   articles-svc:
     image: *articles-image
     environment:
