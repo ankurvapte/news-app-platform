@@ -97,7 +97,37 @@ Clean architecture; dependencies point inward only:
   - [x] `deploy-bump` job in each service's CI pins the new SHA here (`PLATFORM_REPO_TOKEN` secret in both service repos)
   - [x] End-to-end (2026-10-25): articles-svc 1aa3690 and 0668a41, users-svc 3b45cb2 went push → CI → bump → updater → deployed and healthy with no manual step; ~3–4 min push to running (CI ~1.5 min, updater wait ≤ 2 min, deploy ~15 s)
   - Note: re-running an older CI run pins its older SHA (an intentional-or-not rollback); re-run only the newest run unless rolling back
-- [ ] Gateway benchmark: Traefik vs NGINX on the same machine (after CD; locally first)
+- [ ] Learning session: Kafka in depth, for architectural decisions (added 2026-10-26; a target topic the user wants to master. Goal: learn to make and defend architecture decisions with Kafka, not just to get it working. Go slowly, one module at a time; resume when the user asks)
+  - Full curriculum: `docs/learning/kafka-curriculum.md` (read it before each session). It is designed around the user's background: monoliths and SQL Server all career, new to microservices and EDA, leads an eCommerce backend team, has forgotten Kafka after past attempts.
+  - How it ties together (decided 2026-10-26): no separate learning app. The news app is the one real system where ADRs get implemented (it already has CI, CD, gateway, backups, so Kafka is the only new thing). Labs are throwaway (`kafka-lab`, a 3-broker lab cluster, small scripts such as a two-script orders/inventory saga; never full services). eCommerce stays on paper: the same decisions applied to the user's order flow as ADRs and diagrams.
+  - Order (decided 2026-10-26): this comes next, before the gateway benchmark and AWS. Learning and building interleave in slices (see the next roadmap item): never implement a decision before its ADR exists, but use each concept within days of learning it. Phase A needs no Kafka build (A1's lab runs on the news app as it is).
+  - Every concept has three anchors: its SQL Server analogy (and where it breaks), the news app, and the eCommerce counterpart. Every session: recall quiz first (spaced: next session, ~1 week, ~1 month), then decision → options → trade-offs → internals → lab → the user decides (ADR in `docs/adr/`) → teach-back as if to their team → the user writes a one-page note in `docs/learning/kafka/` (Claude draws the diagram, the user writes the bullets).
+  - Started 2026-10-26: intro walkthrough on `kafka-lab` (apache/kafka 4.3.1). Its 3 exercises are not answered yet.
+  - [ ] A1. From monolith to services: what breaks when you split (one transaction, JOINs) → ADR
+  - [ ] A2. Synchronous vs asynchronous; commands vs events; queue vs pub/sub (bridge: Service Broker) → ADR
+  - [ ] A3. EDA fundamentals: event styles, choreography vs orchestration, eventual consistency, sagas, outbox → ADR
+  - [ ] A4. The log: SQL Server's transaction log → Kafka; seed `sql-server-to-kafka.md`
+  - [ ] B1. Do we need a broker at all? → ADR
+  - [ ] B2. Event and topic design → ADR
+  - [ ] B3. Ordering and partitioning → ADR
+  - [ ] B4. Delivery guarantees → ADR
+  - [ ] B5. Durability vs cost (lab: 3-broker cluster) → ADR
+  - [ ] B6. Consumer topology and scaling → ADR
+  - [ ] B7. Failure strategy (poison messages, DLQ) → ADR
+  - [ ] B8. Contracts and evolution → ADR
+  - [ ] B9. Retention and storage → ADR
+  - [ ] B10. Build vs buy and operations → ADR
+  - [ ] B11. Security → ADR
+  - [ ] B12. Ecosystem (incl. Debezium CDC on SQL Server)
+  - [ ] B13. Reversibility and migrating a monolith to events (strangler fig)
+  - [ ] B14. (after the ingestion build) Capstone: architecture review + failure drills; eCommerce order-flow design exercise
+  - [ ] B15. Where to look things up
+- [ ] Kafka in the news app, built in slices interleaved with the Kafka learning session (decided 2026-10-26). Each slice implements only decisions already recorded as ADRs; details may change with those ADRs (starting design: `docs/kafka-architecture.svg`)
+  - [x] Check memory first (2026-10-26): Docker Desktop has 3.8 GiB, the stack uses ~200 MiB, a single broker with a 512 MiB heap used 300–460 MiB. On AWS, resize to `t4g.medium` when Kafka goes there
+  - [ ] Slice 1 (after B1–B4), happy path: broker in the platform compose (single KRaft node, named volume, `kafka-init` creates the topics); new `ingest-svc` polls RSS on a schedule, normalizes items and publishes them keyed by source URL (owns no article data); articles-svc migration adds `source_url` (unique), `published_at`, `ingested_at` (README contract) and a consumer does an idempotent upsert with manual offset commit after the DB write; end-to-end from feed to API
+  - [ ] Slice 2 (after B5–B9): bad messages → DLQ; consumer scaled to 2 replicas in one group; retention per ADR; second event flow: users-svc publishes user events and articles-svc keeps its own copy of author names (event-carried state transfer, eventual consistency; the answer to A1's "articles with author names" without a JOIN or a synchronous call); a news API source after RSS
+  - [ ] Slice 3 (after B10–B13), hardening: per-source retries/backoff and rate limits, consumer lag in `/health/ready` or logs, security per ADR, end-to-end test in platform CI (ingest-svc → Kafka → articles-svc), since per-repo CI can't cover the flow; then the B14 capstone
+- [ ] Gateway benchmark: Traefik vs NGINX on the same machine (after the Kafka work; locally first)
   - Why both gateways: to benchmark them against each other. Keep the gateway swappable: same services and routes, gateway picked per deploy (e.g. compose profiles), services never depend on which one runs.
   - [ ] NGINX gateway with the same routes, TLS and users-svc write block as Traefik
   - [ ] CD can deploy with either gateway
@@ -114,12 +144,4 @@ Clean architecture; dependencies point inward only:
   - [ ] Nightly Postgres backups off the server, and a tested restore
   - [ ] External uptime check on `/health/<svc>/ready` through the gateway
   - [ ] CD deploys to the server through SSM
-- [ ] News ingestion from external sources via Kafka (once CD works)
-  - [ ] Check memory first: Kafka wants about 1 GB more RAM (Docker Desktop's memory limit locally; the instance size on AWS)
-  - [ ] Kafka (single KRaft broker, no ZooKeeper) in `news-app-platform` compose; topics `articles.ingested` + `articles.ingested.dlq`
-  - [ ] New `ingest-svc`: polls external sources (RSS first, then a news API) on a schedule, normalizes items and publishes them keyed by source URL. Owns no article data.
-  - [ ] articles-svc consumer: idempotent upsert into its own Postgres (unique source URL), manual offset commit after the DB write, bad messages go to the DLQ
-  - [ ] articles-svc becomes read + ingest: add `source_url`, `published_at`, `ingested_at` to the data model (README contract)
-  - [ ] Hardening: per-source retries/backoff and rate limits, consumer lag in `/health/ready` or logs, scale the consumer to 2 replicas in one consumer group
-  - [ ] End-to-end test in platform CI (ingest-svc → Kafka → articles-svc), since per-repo CI can't cover the flow
 - [ ] Skills for the best practices (anytime, blocks nothing; best written down right after the step that taught the practice)

@@ -26,6 +26,7 @@ work when the `.svg` is opened directly; the `.png` shows the badge and file nam
 | `docker-compose.yml` | Runs the whole app from pinned GHCR images behind the Traefik gateway |
 | `docs/architecture.svg` | Master architecture diagram (+ `.png`), updated on request |
 | `docs/kafka-architecture.svg` | Detail diagram for Kafka ingestion (+ `.png`), linked from the master's "News ingestion" box |
+| `docs/learning/kafka-curriculum.md` | Kafka learning plan (monolith + SQL Server → event-driven decisions); notes in `docs/learning/kafka/`, ADRs in `docs/adr/` |
 | `scripts/make-local-cert.sh` | Creates the trusted local HTTPS certificate (mkcert) in `certs/` |
 | `scripts/pg-backup.sh` | Backup job (runs inside `articles-backup` / `users-backup`) |
 | `scripts/test-restore.sh`, `scripts/restore.sh` | Prove a backup restores; restore one into the live database |
