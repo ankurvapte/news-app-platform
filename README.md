@@ -20,6 +20,8 @@ Source: [`docs/architecture.svg`](docs/architecture.svg), picture: [`docs/archit
 | `scripts/pg-backup.sh` | Backup job (runs inside `articles-backup` / `users-backup`) |
 | `scripts/test-restore.sh`, `scripts/restore.sh` | Prove a backup restores; restore one into the live database |
 | `scripts/uptime-check.sh` | Scheduled health check through the gateway (runs inside `uptime-check`) |
+| `scripts/deploy.sh`, `scripts/updater.sh` | CD: deploy a commit with health check and rollback; check `origin/main` for new commits |
+| `scripts/install-updater.sh` | One-time CD setup: deploy clone in `~/Deploy`, launchd agent |
 | NGINX gateway | *(planned)* Second gateway option, to benchmark against Traefik |
 | Kafka (in `docker-compose.yml`) | *(planned)* Message broker between `ingest-svc` and articles-svc for news from external sources |
 
@@ -41,15 +43,23 @@ data; cross-service calls go over HTTP.
 ```
 
 ## Run everything (local deploy)
-No service repo needs to be cloned: compose pulls the pinned images from GHCR.
+The app runs from a separate **deploy clone** of this repo, `~/Deploy/news-app-platform`,
+which only ever checks out commits from `origin/main` (like a server). Your working
+copy is for editing; don't run `docker compose up` in it, or it takes over the
+same `news-app` containers. One-time setup (see [CD](#cd-pull-based-gitops)):
 ```bash
-docker compose up -d
+./scripts/install-updater.sh      # from the working copy
+```
+Then, from the deploy clone:
+```bash
+cd ~/Deploy/news-app-platform
 docker compose ps
 curl https://localhost/health/articles/ready
 curl https://localhost/health/users/ready
 curl "https://localhost/api/v1/articles?page_size=2"
 docker compose down        # add -v to also delete both database volumes
 ```
+No service repo needs to be cloned: compose pulls the pinned images from GHCR.
 - Needs trusted local HTTPS (below). Without it Traefik serves its self-signed
   default certificate, and curl needs `-k` (browsers show a warning).
 - Traefik dashboard (routers, services, middlewares): http://localhost:8088/dashboard/
@@ -133,13 +143,50 @@ CHECK_INTERVAL_SECONDS=5 docker compose up -d uptime-check   # check faster whil
 It runs on the same machine as the app, so it can't report a dead Mac or Docker;
 the external uptime check on AWS covers that later.
 
-## Deploy a new version
-1. Push to a service repo; its CI tests, builds and pushes `ghcr.io/ankurvapte/<svc>:<full sha>`.
-2. Put that SHA in the `x-<svc>-image` line at the top of `docker-compose.yml`.
-3. `docker compose up -d`: only that service (and its migrate job) is recreated.
+## CD (pull-based, GitOps)
+```
+ service repo main ──▶ CI: test → image → deploy-bump ──commit "Deploy <svc> <sha>"──▶ news-app-platform main
+                                                                                          │
+ this Mac: launchd every 2 min ─▶ scripts/updater.sh ── git fetch: origin/main new? ◀─────┘
+                                        │ yes
+                                        ▼
+                             scripts/deploy.sh <commit>   (in ~/Deploy/news-app-platform)
+                              checkout → compose pull → up -d → /health/<svc>/ready via gateway
+                                        │                         │
+                                   all 200: deployed        not 200 in 120 s / pull fails:
+                                                            back to the previous commit (rollback),
+                                                            commit marked failed (not retried)
+```
+- **The record of what runs is git:** `docker-compose.yml` on `main` pins every
+  image by SHA, so the platform repo's history is the deploy history.
+- **Step 1, the bump** (`deploy-bump` job in each service's CI, `main` only):
+  writes the new SHA into the `x-<svc>-image` line and pushes the commit here.
+  Needs the `PLATFORM_REPO_TOKEN` secret in each service repo (a fine-grained
+  token with *Contents: read and write* on this repo only); skipped without it.
+- **Step 2, the updater** (`scripts/updater.sh`, run by the launchd agent
+  `com.news-app.updater`): reads the public repo, so the Mac holds no GitHub
+  credentials and nothing reaches into it. Quiet when up to date; catches up
+  after the Mac wakes. Skips a commit that already failed.
+- **Step 3, the deploy** (`scripts/deploy.sh`): one deploy at a time, health checked
+  through the gateway like a client, automatic rollback on failure.
+- Logs: `~/Deploy/news-app-platform/.deploy/deploy.log` (JSON lines),
+  state in `.deploy/deployed` and `.deploy/failed`.
 
-Roll back by putting the previous SHA back and running `docker compose up -d` again.
-Never deploy `:main`; it moves on every push. To try a change before pushing,
+```bash
+tail -f ~/Deploy/news-app-platform/.deploy/deploy.log      # watch deploys
+cat ~/Deploy/news-app-platform/.deploy/deployed             # commit running now
+~/Deploy/news-app-platform/scripts/deploy.sh                # deploy origin/main now
+launchctl kickstart gui/$(id -u)/com.news-app.updater       # run the updater now
+launchctl bootout gui/$(id -u)/com.news-app.updater         # stop automatic deploys
+```
+
+**Roll back** (one command, then the updater deploys it): revert the bump commit
+in your working copy and push.
+```bash
+git revert --no-edit <bump commit> && git push
+```
+**Deploy by hand**: edit the SHA in the `x-<svc>-image` line, commit, push.
+Never pin `:main`; it moves on every push. To try a change before pushing,
 run that service's own compose file from its repo (`docker compose up --build`).
 
 ## Gateway rules

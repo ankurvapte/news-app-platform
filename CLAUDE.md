@@ -87,7 +87,11 @@ Clean architecture; dependencies point inward only:
   - [x] Health check through the gateway on a schedule: `uptime-check` container (curlimages/curl, `scripts/uptime-check.sh`) hits `https://PUBLIC_HOST/health/<svc>/ready` every 60 s through the published port (`CHECK_VIA=host.docker.internal:443`, so Docker's port forwarding is covered too) and the gateway with TLS verified by mkcert's CA; container health = all up; JSON logs on down/still down/back up
   - Secrets: dev default passwords are fine locally; real ones go in an untracked `.env` on whatever machine runs it, never in a repo
 - [ ] CD (local first): merge to `main` deploys automatically, checks `/health/ready` through the gateway, one-command rollback to the previous image tag
-  - Open: how a push reaches this Mac: a self-hosted GitHub Actions runner here, or a pull-based updater that watches GHCR/the platform repo
+  - Decided (2026-10-25): pull-based (GitOps), not a self-hosted runner (public repos; a laptop that sleeps). Git (`docker-compose.yml` on platform `main`) is the record of what runs.
+  - [x] `scripts/deploy.sh <commit>`: checkout → pull → up -d → `/health/<svc>/ready` via gateway; rollback to the previous commit on failure; `.deploy/deployed|failed` state, JSON `.deploy/deploy.log` (tested: bad tag, unhealthy image, good deploy)
+  - [x] `scripts/updater.sh` (launchd `com.news-app.updater`, every 120 s) in a separate deploy clone `~/Deploy/news-app-platform`; `scripts/install-updater.sh` sets it up
+  - [ ] `deploy-bump` job in each service's CI pins the new SHA here (needs the `PLATFORM_REPO_TOKEN` secret in both service repos)
+  - [ ] End-to-end: a service commit on main reaches this Mac with no manual step
 - [ ] Gateway benchmark: Traefik vs NGINX on the same machine (after CD; locally first)
   - Why both gateways: to benchmark them against each other. Keep the gateway swappable: same services and routes, gateway picked per deploy (e.g. compose profiles), services never depend on which one runs.
   - [ ] NGINX gateway with the same routes, TLS and users-svc write block as Traefik
