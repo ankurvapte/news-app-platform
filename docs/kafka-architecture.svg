@@ -1,0 +1,285 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1280" width="1600" height="1280" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title>News app: Kafka ingestion architecture</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+    <marker id="arrow-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/>
+    </marker>
+    <style>
+      .title { font-size: 26px; font-weight: 700; fill: #0f172a; }
+      .subtitle { font-size: 14px; fill: #475569; }
+      .h { font-size: 16px; font-weight: 700; fill: #0f172a; }
+      .b { font-size: 13px; font-weight: 600; fill: #0f172a; }
+      .t { font-size: 12px; fill: #334155; }
+      .s { font-size: 11px; fill: #64748b; }
+      .mono { font-size: 11.5px; fill: #334155; font-family: 'SF Mono', Menlo, Consolas, monospace; }
+      .cell-t { font-size: 11px; font-weight: 600; fill: #78350f; text-anchor: middle; }
+      .lbl { font-size: 12px; font-weight: 600; fill: #334155; }
+      .red-lbl { font-size: 12px; font-weight: 600; fill: #b91c1c; }
+      .line { stroke: #334155; stroke-width: 1.6; fill: none; }
+      .line-planned { stroke: #94a3b8; stroke-width: 1.6; fill: none; stroke-dasharray: 6 4; }
+      .line-red { stroke: #dc2626; stroke-width: 1.6; fill: none; stroke-dasharray: 6 4; }
+      .built { fill: #eff6ff; stroke: #2563eb; stroke-width: 1.5; }
+      .planned { fill: #f8fafc; stroke: #94a3b8; stroke-width: 1.5; stroke-dasharray: 6 4; }
+      .inner { fill: #ffffff; stroke: #94a3b8; stroke-width: 1.2; stroke-dasharray: 5 3; }
+      .cell { fill: #fef3c7; stroke: #d97706; stroke-width: 1; }
+      .cell-dlq { fill: #fee2e2; stroke: #dc2626; stroke-width: 1; }
+      .zone { fill: none; stroke: #64748b; stroke-width: 1.2; stroke-dasharray: 3 3; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1280" fill="#ffffff"/>
+
+  <!-- Title + legend -->
+  <text x="40" y="46" class="title">News app — Kafka ingestion (proposed)</text>
+  <text x="40" y="72" class="subtitle">As of 2026-10-26 · roadmap step "News ingestion via Kafka" · not built yet</text>
+  <circle cx="542" cy="38" r="11" fill="#d97706"/><text x="542" y="42" text-anchor="middle" style="font-size:12px;font-weight:700;fill:#ffffff">K</text>
+  <!-- Back-link to the master diagram, where this is the "News ingestion" box with the same K badge -->
+  <a href="architecture.svg" target="_top">
+  <title>Back to the master architecture diagram (architecture.svg)</title>
+  <rect x="40" y="86" width="470" height="22" rx="11" fill="#fef3c7" stroke="#d97706"/>
+  <text x="54" y="101" style="font-size:12px;font-weight:600;fill:#92400e">↖ zoom-in of architecture.svg › ⑥ Roadmap › "News ingestion" (K)</text>
+  </a>
+  <rect x="1130" y="34" width="34" height="18" rx="4" class="built"/>
+  <text x="1172" y="48" class="t">built &amp; running</text>
+  <rect x="1290" y="34" width="34" height="18" rx="4" class="planned"/>
+  <text x="1332" y="48" class="t">planned</text>
+  <line x1="1130" y1="70" x2="1164" y2="70" class="line-planned" marker-end="url(#arrow-gray)"/>
+  <text x="1172" y="74" class="t">message / data flow</text>
+  <line x1="1290" y1="70" x2="1324" y2="70" class="line-red" marker-end="url(#arrow-red)"/>
+  <text x="1332" y="74" class="t">bad message → DLQ</text>
+
+  <!-- ===================== ROW 1: producer → broker → consumer ===================== -->
+
+  <!-- External sources -->
+  <rect x="40" y="150" width="250" height="210" rx="12" fill="#ffffff" stroke="#64748b" stroke-width="1.5"/>
+  <text x="58" y="178" class="h">External news sources</text>
+  <rect x="58" y="192" width="214" height="34" rx="6" fill="#f8fafc" stroke="#94a3b8"/>
+  <text x="70" y="214" class="t">RSS feed: BBC</text>
+  <rect x="58" y="232" width="214" height="34" rx="6" fill="#f8fafc" stroke="#94a3b8"/>
+  <text x="70" y="254" class="t">RSS feed: Reuters, The Hindu …</text>
+  <rect x="58" y="272" width="214" height="34" rx="6" class="planned"/>
+  <text x="70" y="294" class="planned-t s">news API (after RSS works)</text>
+  <text x="58" y="332" class="s">Outside our control: slow, down,</text>
+  <text x="58" y="347" class="s">rate-limited, or sending junk.</text>
+
+  <!-- ingest-svc -->
+  <rect x="330" y="130" width="290" height="300" rx="12" class="planned"/>
+  <text x="348" y="158" class="h">ingest-svc (new repo)</text>
+  <text x="348" y="176" class="s">FastAPI · Python 3.12 · same layout as the others</text>
+  <rect x="348" y="190" width="254" height="150" rx="8" class="inner"/>
+  <text x="360" y="210" class="b">every N minutes, per source:</text>
+  <text x="360" y="230" class="t">1. fetch feed (timeout, retry, backoff)</text>
+  <text x="360" y="248" class="t">2. normalize → IngestedItem (domain)</text>
+  <text x="360" y="266" class="t">3. publish JSON to articles.ingested</text>
+  <text x="372" y="284" class="mono">key   = source_url</text>
+  <text x="372" y="300" class="mono">acks  = all</text>
+  <text x="360" y="322" class="s">port: ArticlePublisher → Kafka adapter</text>
+  <text x="348" y="364" class="b">Owns no article data · no DB</text>
+  <text x="348" y="382" class="t">Stateless: duplicates are fine, because</text>
+  <text x="348" y="398" class="t">the consumer's upsert is idempotent.</text>
+  <text x="348" y="418" class="s">/health/ready → can reach the broker</text>
+
+  <line x1="290" y1="255" x2="326" y2="255" class="line-planned" marker-end="url(#arrow-gray)"/>
+  <text x="294" y="245" class="s">poll</text>
+
+  <!-- Kafka broker -->
+  <rect x="660" y="100" width="560" height="470" rx="12" class="planned"/>
+  <text x="680" y="128" class="h">Kafka broker — apache/kafka 4.x, single KRaft node</text>
+  <text x="680" y="147" class="s">broker + controller in one container (no ZooKeeper) · network: services only · no host port</text>
+  <text x="680" y="163" class="s">auto.create.topics.enable=false · heap capped (~512 MiB) · log on named volume kafka-data</text>
+
+  <!-- topic articles.ingested -->
+  <text x="680" y="192" class="b">topic  articles.ingested</text>
+  <text x="868" y="192" class="s">3 partitions · retention 7 days · messages stay after they are read</text>
+
+  <!-- P0 -->
+  <text x="680" y="219" class="lbl">P0</text>
+  <rect x="710" y="202" width="34" height="26" class="cell"/><text x="727" y="219" class="cell-t">0</text>
+  <rect x="744" y="202" width="34" height="26" class="cell"/><text x="761" y="219" class="cell-t">1</text>
+  <rect x="778" y="202" width="34" height="26" class="cell"/><text x="795" y="219" class="cell-t">2</text>
+  <rect x="812" y="202" width="34" height="26" class="cell"/><text x="829" y="219" class="cell-t">3</text>
+  <rect x="846" y="202" width="34" height="26" fill="#ffffff" stroke="#d97706" stroke-dasharray="3 2"/>
+  <line x1="812" y1="232" x2="812" y2="240" stroke="#2563eb" stroke-width="2"/>
+  <text x="900" y="214" class="t">end offset 4 · committed 3 · lag 1</text>
+  <text x="900" y="228" class="s">key reuters.com/b7, thehindu.com/c3</text>
+
+  <!-- P1 -->
+  <text x="680" y="267" class="lbl">P1</text>
+  <rect x="710" y="250" width="34" height="26" class="cell"/><text x="727" y="267" class="cell-t">0</text>
+  <rect x="744" y="250" width="34" height="26" class="cell"/><text x="761" y="267" class="cell-t">1</text>
+  <rect x="778" y="250" width="34" height="26" fill="#ffffff" stroke="#d97706" stroke-dasharray="3 2"/>
+  <line x1="778" y1="280" x2="778" y2="288" stroke="#2563eb" stroke-width="2"/>
+  <text x="900" y="262" class="t">end offset 2 · committed 2 · lag 0</text>
+  <text x="900" y="276" class="s">other keys hash here</text>
+
+  <!-- P2 -->
+  <text x="680" y="315" class="lbl">P2</text>
+  <rect x="710" y="298" width="34" height="26" class="cell"/><text x="727" y="315" class="cell-t">0</text>
+  <rect x="744" y="298" width="34" height="26" class="cell"/><text x="761" y="315" class="cell-t">1</text>
+  <rect x="778" y="298" width="34" height="26" class="cell"/><text x="795" y="315" class="cell-t">2</text>
+  <rect x="812" y="298" width="34" height="26" class="cell"/><text x="829" y="315" class="cell-t">3</text>
+  <rect x="846" y="298" width="34" height="26" class="cell"/><text x="863" y="315" class="cell-t">4</text>
+  <rect x="880" y="298" width="34" height="26" fill="#ffffff" stroke="#d97706" stroke-dasharray="3 2"/>
+  <line x1="812" y1="328" x2="812" y2="336" stroke="#2563eb" stroke-width="2"/>
+  <text x="926" y="310" class="t">end 5 · committed 3 · lag 2</text>
+  <text x="926" y="324" class="s">bbc.co.uk/a1 ×3, in order (same key → same P)</text>
+
+  <line x1="710" y1="350" x2="736" y2="350" stroke="#2563eb" stroke-width="2"/>
+  <text x="742" y="354" class="s">= committed offset of group "articles" (next message it will read)</text>
+
+  <!-- DLQ -->
+  <text x="680" y="388" class="b">topic  articles.ingested.dlq</text>
+  <text x="896" y="388" class="s">messages that can never succeed, kept for inspection</text>
+  <text x="680" y="415" class="red-lbl">P0</text>
+  <rect x="710" y="398" width="34" height="26" class="cell-dlq"/><text x="727" y="415" class="cell-t" style="fill:#7f1d1d">0</text>
+  <rect x="744" y="398" width="34" height="26" fill="#ffffff" stroke="#dc2626" stroke-dasharray="3 2"/>
+  <text x="792" y="415" class="s">e.g. invalid JSON, no title, unknown schema_version</text>
+
+  <!-- consumer offsets -->
+  <rect x="680" y="440" width="250" height="56" rx="8" class="inner"/>
+  <text x="692" y="460" class="b">__consumer_offsets</text>
+  <text x="692" y="476" class="s">internal topic: where commits are stored</text>
+  <text x="692" y="490" class="mono">articles → P0:3 P1:2 P2:3</text>
+
+  <!-- kafka-init + volume -->
+  <rect x="950" y="440" width="250" height="56" rx="8" class="inner"/>
+  <text x="962" y="460" class="b">kafka-init (one-shot job)</text>
+  <text x="962" y="476" class="s">creates both topics, 3 partitions, exits 0;</text>
+  <text x="962" y="490" class="s">like *-migrate: consumers wait for it</text>
+  <rect x="680" y="508" width="520" height="46" rx="8" fill="#ffffff" stroke="#64748b" stroke-width="1.2"/>
+  <text x="692" y="527" class="b">volume kafka-data</text>
+  <text x="812" y="527" class="s">the partition log files on disk (articles.ingested-2/…0000.log)</text>
+  <text x="692" y="544" class="s">without it a container re-create loses every message and offset (stateless-container rule)</text>
+
+  <!-- ingest → kafka -->
+  <line x1="620" y1="270" x2="706" y2="270" class="line-planned" marker-end="url(#arrow-gray)"/>
+  <text x="626" y="260" class="s">produce</text>
+
+  <!-- Consumer group -->
+  <rect x="1260" y="130" width="300" height="320" rx="12" class="planned"/>
+  <text x="1278" y="158" class="h">consumer group "articles"</text>
+  <text x="1278" y="176" class="s">partitions are split between members</text>
+  <rect x="1278" y="190" width="264" height="92" rx="8" class="inner"/>
+  <text x="1290" y="210" class="b">articles-consumer · replica 1</text>
+  <text x="1290" y="228" class="t">assigned P0, P1</text>
+  <text x="1290" y="246" class="s">articles-svc image, other command:</text>
+  <text x="1290" y="262" class="mono">python -m app.consumer</text>
+  <rect x="1278" y="292" width="264" height="70" rx="8" class="inner"/>
+  <text x="1290" y="312" class="b">articles-consumer · replica 2</text>
+  <text x="1290" y="330" class="t">assigned P2</text>
+  <text x="1290" y="348" class="s">hardening step: --scale 2</text>
+  <text x="1278" y="384" class="t">One member dies → rebalance: the</text>
+  <text x="1278" y="400" class="t">survivor takes its partitions and resumes</text>
+  <text x="1278" y="416" class="t">at the committed offsets.</text>
+  <text x="1278" y="436" class="s">max useful replicas = partitions (3)</text>
+
+  <!-- kafka → consumers -->
+  <line x1="1220" y1="236" x2="1274" y2="236" class="line-planned" marker-end="url(#arrow-gray)"/>
+  <line x1="1220" y1="326" x2="1274" y2="326" class="line-planned" marker-end="url(#arrow-gray)"/>
+  <text x="1228" y="228" class="s">poll</text>
+  <text x="1228" y="318" class="s">poll</text>
+  <!-- consumer → DLQ -->
+  <path d="M1278 352 L1244 352 L1244 411 L1100 411" class="line-red" marker-end="url(#arrow-red)"/>
+  <text x="1104" y="404" class="red-lbl">produce</text>
+
+  <!-- ===================== ROW 2: storage + read path ===================== -->
+
+  <!-- articles-backend zone -->
+  <rect x="860" y="610" width="700" height="290" rx="14" class="zone"/>
+  <text x="878" y="632" class="lbl">network articles-backend (internal: true) — Kafka never joins it</text>
+
+  <!-- articles-migrate -->
+  <rect x="880" y="650" width="300" height="110" rx="10" class="built"/>
+  <text x="896" y="672" class="b">articles-migrate (built)</text>
+  <text x="896" y="690" class="t">+ new expand-only migration:</text>
+  <text x="896" y="708" class="mono">source_url UNIQUE NULL</text>
+  <text x="896" y="724" class="mono">published_at, ingested_at NULL</text>
+  <text x="896" y="744" class="s">nullable, so the 10 seed rows stay valid</text>
+
+  <!-- articles-db -->
+  <rect x="1240" y="650" width="300" height="110" rx="10" class="built"/>
+  <text x="1256" y="672" class="b">articles-db (built, Postgres 17)</text>
+  <text x="1256" y="692" class="t">idempotent upsert, keyed by source_url:</text>
+  <text x="1256" y="712" class="mono">INSERT … ON CONFLICT (source_url)</text>
+  <text x="1256" y="728" class="mono">DO UPDATE …</text>
+  <text x="1256" y="748" class="s">same message twice → same row</text>
+
+  <!-- articles-svc API -->
+  <rect x="1240" y="780" width="300" height="100" rx="10" class="built"/>
+  <text x="1256" y="802" class="b">articles-svc API (built)</text>
+  <text x="1256" y="820" class="t">reads only, as today; contract (README)</text>
+  <text x="1256" y="836" class="t">gains source_url, published_at, ingested_at</text>
+  <text x="1256" y="856" class="s">no Kafka code in the API process</text>
+
+  <!-- consumer → db -->
+  <path d="M1410 450 L1410 646" class="line-planned" marker-end="url(#arrow-gray)"/>
+  <text x="1418" y="560" class="s">upsert, then commit</text>
+  <text x="1418" y="574" class="s">(also on articles-backend)</text>
+  <line x1="1180" y1="705" x2="1236" y2="705" class="line" marker-end="url(#arrow)"/>
+  <text x="1186" y="697" class="s">schema</text>
+  <line x1="1390" y1="762" x2="1390" y2="776" class="line" marker-end="url(#arrow)"/>
+  <text x="1398" y="774" class="s">read</text>
+
+  <!-- gateway + client -->
+  <rect x="460" y="780" width="300" height="100" rx="10" class="built"/>
+  <text x="476" y="802" class="b">gateway — Traefik (built)</text>
+  <text x="476" y="820" class="t">https://localhost/api/v1/articles</text>
+  <text x="476" y="836" class="t">unchanged: Kafka is never exposed</text>
+  <text x="476" y="856" class="s">network: services</text>
+  <line x1="1236" y1="830" x2="764" y2="830" class="line" marker-start="url(#arrow)"/>
+  <rect x="40" y="790" width="250" height="80" rx="10" fill="#ffffff" stroke="#64748b" stroke-width="1.5"/>
+  <text x="58" y="814" class="b">Client (browser, curl)</text>
+  <text x="58" y="832" class="t">sees ingested articles in the</text>
+  <text x="58" y="848" class="t">same API as the seed ones</text>
+  <line x1="456" y1="830" x2="294" y2="830" class="line" marker-start="url(#arrow)"/>
+
+  <!-- networks panel -->
+  <rect x="40" y="610" width="780" height="150" rx="12" fill="#f8fafc" stroke="#64748b" stroke-width="1.2"/>
+  <text x="58" y="636" class="h">Networks (platform compose)</text>
+  <text x="58" y="660" class="mono">services          : gateway, kafka, kafka-init, ingest-svc, articles-svc, articles-consumer, users-svc</text>
+  <text x="58" y="680" class="mono">articles-backend  : articles-db, articles-migrate, articles-backup, articles-svc, articles-consumer</text>
+  <text x="58" y="700" class="mono">users-backend     : users-db, users-migrate, users-backup, users-svc</text>
+  <text x="58" y="726" class="t">Kafka is shared infrastructure on services (like the gateway), never on a backend network.</text>
+  <text x="58" y="744" class="t">ingest-svc and articles-svc never call each other: the topic is the only contract between them.</text>
+
+  <!-- ===================== ROW 3: consumer loop + message ===================== -->
+
+  <rect x="40" y="930" width="760" height="320" rx="12" fill="#ffffff" stroke="#64748b" stroke-width="1.5"/>
+  <text x="58" y="958" class="h">The consumer loop (at-least-once delivery)</text>
+  <text x="58" y="984" class="t">1. poll a message from an assigned partition</text>
+  <text x="58" y="1004" class="t">2. parse + validate (infrastructure) → plain dict → IngestArticle use case (application → domain)</text>
+  <text x="58" y="1024" class="t">3. upsert into articles-db and COMMIT the DB transaction</text>
+  <text x="58" y="1044" class="t">4. commit the Kafka offset (enable.auto.commit=false: we decide when)</text>
+  <text x="58" y="1064" class="red-lbl">   invalid message → produce to articles.ingested.dlq, then commit, so the partition keeps moving</text>
+  <text x="58" y="1084" class="t">   DB down → don't commit; pause and retry, report not-ready (like today's load-failure rule)</text>
+
+  <rect x="58" y="1104" width="724" height="128" rx="8" fill="#f8fafc" stroke="#94a3b8"/>
+  <text x="72" y="1126" class="b">Why the upsert must be idempotent: a crash between step 3 and step 4</text>
+  <text x="72" y="1150" class="mono">offset 3: upsert ✓ ─ crash ✗ ─ (commit never sent)</text>
+  <text x="72" y="1170" class="mono">restart → Kafka still says committed = 3 → offset 3 delivered again</text>
+  <text x="72" y="1190" class="mono">upsert again → ON CONFLICT updates the same row → no duplicate</text>
+  <text x="72" y="1216" class="s">Committing first instead would be at-most-once: a crash then loses the article silently.</text>
+
+  <rect x="830" y="930" width="730" height="320" rx="12" fill="#ffffff" stroke="#64748b" stroke-width="1.5"/>
+  <text x="848" y="958" class="h">One message on articles.ingested</text>
+  <rect x="848" y="972" width="694" height="200" rx="8" fill="#f8fafc" stroke="#94a3b8"/>
+  <text x="864" y="996" class="mono">key:     "https://www.bbc.co.uk/news/articles/a1"</text>
+  <text x="864" y="1016" class="mono">headers: X-Request-ID: 7f3c…   (traceable across services)</text>
+  <text x="864" y="1036" class="mono">value:   {</text>
+  <text x="864" y="1054" class="mono">  "schema_version": 1,</text>
+  <text x="864" y="1072" class="mono">  "source_url": "https://www.bbc.co.uk/news/articles/a1",</text>
+  <text x="864" y="1090" class="mono">  "title": "Rates held", "summary": "…", "category": "business",</text>
+  <text x="864" y="1108" class="mono">  "source": "BBC", "author": "…",</text>
+  <text x="864" y="1126" class="mono">  "published_at": "2026-10-26T08:15:00Z",</text>
+  <text x="864" y="1144" class="mono">  "fetched_at": "2026-10-26T08:20:03Z"</text>
+  <text x="864" y="1162" class="mono">}</text>
+  <text x="848" y="1196" class="t">JSON + schema_version, no schema registry (lean). The fields above are a sketch,</text>
+  <text x="848" y="1214" class="t">fixed in the README contracts when we build it. Client library: confluent-kafka.</text>
+  <text x="848" y="1236" class="s">ingested_at is set by articles-svc on write, not sent by ingest-svc.</text>
+</svg>

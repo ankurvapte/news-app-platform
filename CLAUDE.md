@@ -23,6 +23,10 @@ full-SHA tag, `traefik.*` labels for its routes (and `/health/<svc>/*`), no host
 `news-app-platform/docs/architecture.svg` is the master architecture diagram
 (solid = built, dashed = planned). Update it (and re-render `architecture.png`)
 only when the user explicitly asks; never as a side effect of other changes.
+Detail diagrams (e.g. `docs/kafka-architecture.svg`) zoom into one master box and
+stay in their own files: the master box and the detail share a badge (Kafka = orange
+**K**) and link to each other (`<a href>` + a visible "detail → <file>" chip). Same
+update rule as the master; list each one in the README's "Detail diagrams" table.
 
 Services never read each other's data. A future cross-service call (e.g.
 articles → users for author details) goes over HTTP with a timeout and

@@ -28,7 +28,7 @@
 
   <!-- Title + legend -->
   <text x="40" y="46" class="title">News app — master architecture</text>
-  <text x="40" y="72" class="subtitle">As of 2026-10-25 · flow: code → CI → registry → pull-based CD → local deploy</text>
+  <text x="40" y="72" class="subtitle">As of 2026-10-26 · flow: code → CI → registry → pull-based CD → local deploy</text>
   <rect x="1130" y="34" width="34" height="18" rx="4" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
   <text x="1172" y="48" class="t">built &amp; running</text>
   <rect x="1290" y="34" width="34" height="18" rx="4" class="planned"/>
@@ -372,6 +372,9 @@
   <text x="1144" y="1176" class="planned-t">ports 80/443 public,</text>
   <text x="1144" y="1190" class="planned-t">stop it when unused</text>
 
+  <!-- Linked detail diagram: kafka-architecture.svg (same orange K badge in both files) -->
+  <a href="kafka-architecture.svg" target="_top">
+  <title>Open the Kafka ingestion detail diagram (kafka-architecture.svg)</title>
   <rect x="1355" y="1075" width="185" height="120" rx="10" class="planned"/>
   <text x="1369" y="1099" class="planned-b">News ingestion</text>
   <text x="1369" y="1118" class="planned-t">ingest-svc (RSS, APIs)</text>
@@ -379,6 +382,10 @@
   <text x="1369" y="1150" class="planned-t">→ articles-svc consumer</text>
   <text x="1369" y="1176" class="planned-t">idempotent upsert,</text>
   <text x="1369" y="1190" class="planned-t">DLQ for bad messages</text>
+  <circle cx="1532" cy="1083" r="11" fill="#d97706"/><text x="1532" y="1087" text-anchor="middle" style="font-size:12px;font-weight:700;fill:#ffffff">K</text>
+  <rect x="1355" y="1203" width="185" height="22" rx="11" fill="#fef3c7" stroke="#d97706"/>
+  <text x="1447" y="1218" text-anchor="middle" style="font-size:11px;font-weight:600;fill:#92400e">detail → kafka-architecture.svg</text>
+  </a>
 
   <line x1="890" y1="1135" x2="913" y2="1135" class="line-planned" marker-end="url(#arrow-gray)"/>
   <line x1="1105" y1="1135" x2="1128" y2="1135" class="line-planned" marker-end="url(#arrow-gray)"/>
