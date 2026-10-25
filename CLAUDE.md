@@ -77,7 +77,7 @@ Clean architecture; dependencies point inward only:
   - Why both gateways: to benchmark them against each other. Keep the gateway swappable: same services and routes, gateway picked per deploy (e.g. compose profiles), services never depend on which one runs.
   - Decided: ARM (Graviton `t4g`) instance. CI runs on native ARM runners (`ubuntu-24.04-arm`) and builds `linux/arm64` only (server and dev Macs are both ARM).
   - Decided: access via AWS SSM only (instance role with `AmazonSSMManagedInstanceCore`); no SSH port, no key pairs. Security group inbound: 80/443 only. CD will reach the server through SSM too (GitHub OIDC → AWS role, no long-lived AWS keys).
-  - Proposed (not yet confirmed by the user): free DuckDNS hostname, IP updated on boot, so no Elastic IP is needed.
+  - Decided: free DuckDNS hostname, IP updated on boot, so no Elastic IP is needed.
   - [ ] Platform compose runs pinned registry images (`ghcr.io/ankurvapte/<svc>:<full sha>`, no `build:`); secrets live on the server, never in a repo
   - [ ] Reverse proxy / API gateway (NGINX or Traefik) with TLS as the only public entry; DBs never exposed
   - [ ] Lock down users-svc writes before going public (no auth yet): block or protect them at the gateway
