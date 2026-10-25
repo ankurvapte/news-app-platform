@@ -13,6 +13,27 @@ x-users-image: &users-image ghcr.io/ankurvapte/users-svc:01756dd4a979ad53ce5d775
 x-articles-db-url: &articles-db-url postgresql://articles:${ARTICLES_DB_PASSWORD:-articles-dev-password}@articles-db:5432/articles
 x-users-db-url: &users-db-url postgresql://users:${USERS_DB_PASSWORD:-users-dev-password}@users-db:5432/users
 
+# Shared definition for the per-database backup jobs (merged in with `<<: *backup`).
+# Each one runs pg-backup (scripts/pg-backup.sh) at start and then every
+# BACKUP_INTERVAL_SECONDS, writing pg_dump files to ./backups/<svc> on the host,
+# outside the database volumes. Restore: scripts/test-restore.sh / restore.sh.
+x-backup: &backup
+  image: postgres:17-alpine
+  user: "70:70" # the image's postgres user, not root
+  init: true # tini as PID 1 reaps the background sleep
+  entrypoint: ["/bin/sh", "-c"]
+  # `sleep & wait` + trap: SIGTERM ends the wait at once, so `docker compose
+  # down/restart` does not hang for 10 s; a running pg_dump finishes first
+  # (within the 10 s stop timeout), and a half-written dump is never taken for a backup.
+  command:
+    - |
+      trap 'exit 0' TERM INT
+      while true; do
+        pg-backup || echo '{"level":"ERROR","message":"backup failed"}'
+        sleep "$${BACKUP_INTERVAL_SECONDS:-86400}" & wait $$!
+      done
+  restart: unless-stopped
+
 services:
   # The only container with published ports, bound to 127.0.0.1 so nothing outside
   # this machine can reach it. Services and databases publish no ports at all.
@@ -114,6 +135,24 @@ services:
     networks: [articles-backend]
     restart: unless-stopped
 
+  # Backup job for articles-db only: lives on articles-backend, like the service itself.
+  articles-backup:
+    <<: *backup
+    environment:
+      PGHOST: articles-db
+      PGUSER: articles
+      PGDATABASE: articles
+      PGPASSWORD: ${ARTICLES_DB_PASSWORD:-articles-dev-password}
+      BACKUP_KEEP: "7"
+      BACKUP_INTERVAL_SECONDS: "86400"
+    volumes:
+      - ./scripts/pg-backup.sh:/usr/local/bin/pg-backup:ro
+      - ./backups/articles:/backups
+    depends_on:
+      articles-db:
+        condition: service_healthy
+    networks: [articles-backend]
+
   users-svc:
     image: *users-image
     environment:
@@ -172,6 +211,24 @@ services:
       retries: 10
     networks: [users-backend]
     restart: unless-stopped
+
+  # Backup job for users-db only: lives on users-backend, like the service itself.
+  users-backup:
+    <<: *backup
+    environment:
+      PGHOST: users-db
+      PGUSER: users
+      PGDATABASE: users
+      PGPASSWORD: ${USERS_DB_PASSWORD:-users-dev-password}
+      BACKUP_KEEP: "7"
+      BACKUP_INTERVAL_SECONDS: "86400"
+    volumes:
+      - ./scripts/pg-backup.sh:/usr/local/bin/pg-backup:ro
+      - ./backups/users:/backups
+    depends_on:
+      users-db:
+        condition: service_healthy
+    networks: [users-backend]
 
 # Each database sits on a private network shared only with its own service
 # (and its migrate job), so no other container can even resolve its name.

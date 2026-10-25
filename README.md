@@ -17,6 +17,8 @@ Source: [`docs/architecture.svg`](docs/architecture.svg), picture: [`docs/archit
 | `docker-compose.yml` | Runs the whole app from pinned GHCR images behind the Traefik gateway |
 | `docs/architecture.svg` | Master architecture diagram (+ `.png`); update it with every architecture change |
 | `scripts/make-local-cert.sh` | Creates the trusted local HTTPS certificate (mkcert) in `certs/` |
+| `scripts/pg-backup.sh` | Backup job (runs inside `articles-backup` / `users-backup`) |
+| `scripts/test-restore.sh`, `scripts/restore.sh` | Prove a backup restores; restore one into the live database |
 | NGINX gateway | *(planned)* Second gateway option, to benchmark against Traefik |
 | Kafka (in `docker-compose.yml`) | *(planned)* Message broker between `ingest-svc` and articles-svc for news from external sources |
 
@@ -42,13 +44,13 @@ No service repo needs to be cloned: compose pulls the pinned images from GHCR.
 ```bash
 docker compose up -d
 docker compose ps
-curl -k https://localhost/health/articles/ready
-curl -k https://localhost/health/users/ready
-curl -k "https://localhost/api/v1/articles?page_size=2"
+curl https://localhost/health/articles/ready
+curl https://localhost/health/users/ready
+curl "https://localhost/api/v1/articles?page_size=2"
 docker compose down        # add -v to also delete both database volumes
 ```
-- `-k`: needed until you set up trusted local HTTPS (below); without it Traefik
-  serves its self-signed default certificate, which curl and browsers reject.
+- Needs trusted local HTTPS (below). Without it Traefik serves its self-signed
+  default certificate, and curl needs `-k` (browsers show a warning).
 - Traefik dashboard (routers, services, middlewares): http://localhost:8088/dashboard/
 - All three ports are bound to `127.0.0.1`, so nothing outside this machine can reach them.
 
@@ -69,12 +71,38 @@ mkcert -install
 ```
 - The certificate lands in `certs/` (git-ignored, mounted read-only into the gateway).
   Delete `certs/` and Traefik falls back to its self-signed default.
-- Browsers (Safari, Chrome) use the macOS trust store, so they show no warning.
-  curl and Python may use their own CA bundles instead; if they still complain,
-  pass the CA explicitly:
-  `curl --cacert "$(mkcert -CAROOT)/rootCA.pem" https://localhost/...`
+- Browsers and macOS's `/usr/bin/curl` use the macOS trust store, so they just work.
+  Python (and Homebrew curl) use their own CA list; point them at mkcert's CA:
+  `SSL_CERT_FILE="$(mkcert -CAROOT)/rootCA.pem" python3 ...`
+  or `curl --cacert "$(mkcert -CAROOT)/rootCA.pem" https://localhost/...`
 - Keep `$(mkcert -CAROOT)/rootCA-key.pem` private: anyone with it can create
   certificates this Mac trusts for any site. `mkcert -uninstall` removes the CA.
+
+## Backups and restore
+```
+ articles-db ◀─pg_dump─ articles-backup ─▶ backups/articles/articles-<UTC time>.dump
+ users-db    ◀─pg_dump─ users-backup    ─▶ backups/users/users-<UTC time>.dump
+                                                │
+            test-restore.sh ─▶ throwaway Postgres (no network) ─▶ compare row counts with live
+            restore.sh      ─▶ live DB (stop service → restore in one transaction → start)
+```
+- `articles-backup` and `users-backup` back up their own database once at start
+  and then every `BACKUP_INTERVAL_SECONDS` (86400 = daily), keeping the newest
+  `BACKUP_KEEP` (7). Each sits only on its database's backend network.
+- Dumps go to `backups/` on the host (git-ignored), outside the Docker volumes, so
+  `docker compose down -v` doesn't delete them. Format: `pg_dump -Fc` (compressed,
+  restorable with `pg_restore`).
+- They only run while Docker is running; a sleeping Mac takes no backups.
+
+```bash
+docker compose exec users-backup pg-backup            # back up now
+ls backups/users                                       # list backups
+./scripts/test-restore.sh users                        # prove the newest one restores (live DB untouched)
+./scripts/restore.sh users backups/users/<file>.dump   # replace live data (asks to confirm)
+docker compose logs users-backup                       # JSON lines: backup written / old backup deleted
+```
+`restore.sh` stops `users-svc` (a few seconds of 503/404 at the gateway), restores
+in a single transaction (a failed restore leaves the old data), then starts it again.
 
 ## Deploy a new version
 1. Push to a service repo; its CI tests, builds and pushes `ghcr.io/ankurvapte/<svc>:<full sha>`.

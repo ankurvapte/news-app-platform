@@ -127,7 +127,7 @@
   <rect x="65" y="560" width="160" height="80" rx="10" fill="#ffffff" stroke="#334155" stroke-width="1.5"/>
   <text x="80" y="590" class="b">Browser / curl</text>
   <text x="80" y="608" class="s">https://localhost/…</text>
-  <text x="80" y="623" class="s">(X-Request-ID optional)</text>
+  <text x="80" y="623" class="s">no -k needed (mkcert)</text>
 
   <!-- docker.sock -->
   <rect x="290" y="480" width="210" height="52" rx="8" fill="#ffffff" stroke="#64748b"/>
@@ -195,7 +195,7 @@
   <rect x="1365" y="505" width="160" height="58" rx="8" fill="#ffffff" stroke="#16a34a"/>
   <text x="1378" y="527" class="b">articles-migrate</text>
   <text x="1378" y="544" class="s">alembic upgrade head</text>
-  <text x="1378" y="557" class="s">one-shot, exits 0</text>
+  <text x="1378" y="557" class="s">one-shot → then svc starts</text>
   <line x1="1365" y1="534" x2="1352" y2="534" class="line" marker-end="url(#arrow)"/>
   <!-- volume cylinder -->
   <g>
@@ -204,8 +204,10 @@
     <text x="1210" y="606" class="s">vol articles-db-data</text>
   </g>
   <line x1="1265" y1="563" x2="1265" y2="575" class="line"/>
-  <text x="1365" y="590" class="s">migrate finishes →</text>
-  <text x="1365" y="604" class="s">then articles-svc starts</text>
+  <rect x="1365" y="575" width="160" height="45" rx="8" fill="#ffffff" stroke="#16a34a"/>
+  <text x="1378" y="594" class="b">articles-backup</text>
+  <text x="1378" y="610" class="s">pg_dump at start + daily</text>
+  <line x1="1365" y1="590" x2="1352" y2="560" class="line" marker-end="url(#arrow)"/>
 
   <!-- users-backend zone -->
   <rect x="1165" y="645" width="375" height="160" rx="12" fill="#f0fdf4" fill-opacity=".6" stroke="#16a34a" stroke-width="1.3" stroke-dasharray="3 3"/>
@@ -217,7 +219,11 @@
   <rect x="1365" y="680" width="160" height="58" rx="8" fill="#ffffff" stroke="#16a34a"/>
   <text x="1378" y="702" class="b">users-migrate</text>
   <text x="1378" y="719" class="s">alembic upgrade head</text>
-  <text x="1378" y="732" class="s">one-shot, exits 0</text>
+  <text x="1378" y="732" class="s">one-shot → then svc starts</text>
+  <rect x="1365" y="750" width="160" height="45" rx="8" fill="#ffffff" stroke="#16a34a"/>
+  <text x="1378" y="769" class="b">users-backup</text>
+  <text x="1378" y="785" class="s">pg_dump at start + daily</text>
+  <line x1="1365" y1="765" x2="1352" y2="735" class="line" marker-end="url(#arrow)"/>
   <line x1="1365" y1="709" x2="1352" y2="709" class="line" marker-end="url(#arrow)"/>
   <g>
     <ellipse cx="1265" cy="757" rx="70" ry="7" fill="#dcfce7" stroke="#16a34a"/>
@@ -237,7 +243,7 @@
   <text x="79" y="864" class="b">mkcert local CA</text>
   <text x="79" y="882" class="s">~/Library/…/mkcert (CAROOT)</text>
   <text x="79" y="897" class="s">rootCA-key.pem = keep secret</text>
-  <text x="79" y="912" class="s">mkcert -install → macOS trust store</text>
+  <text x="79" y="912" class="s">installed in macOS trust store ✓</text>
 
   <rect x="320" y="840" width="225" height="80" rx="10" fill="#fffbeb" stroke="#d97706" stroke-width="1.6"/>
   <text x="334" y="864" class="b">certs/  (git-ignored)</text>
@@ -265,15 +271,16 @@
   <text x="914" y="888" class="planned-t">through the gateway</text>
   <line x1="1000" y1="830" x2="840" y2="782" class="line-planned" marker-end="url(#arrow-gray)"/>
 
-  <rect x="1165" y="830" width="375" height="70" rx="10" class="planned"/>
-  <text x="1179" y="854" class="planned-b">Postgres backups + tested restore (planned)</text>
-  <text x="1179" y="872" class="planned-t">pg_dump per DB → backups/ folder outside volumes</text>
-  <text x="1179" y="888" class="planned-t">restore into a fresh DB to prove the backup works</text>
-  <line x1="1520" y1="830" x2="1520" y2="618" class="line-planned" marker-end="url(#arrow-gray)"/>
-  <line x1="1505" y1="830" x2="1505" y2="793" class="line-planned" marker-end="url(#arrow-gray)"/>
+  <rect x="1165" y="830" width="375" height="80" rx="10" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.6"/>
+  <text x="1179" y="852" class="b">backups/  on the host (git-ignored, outside volumes)</text>
+  <text x="1179" y="869" class="s">articles/*.dump · users/*.dump · pg_dump -Fc · daily · keep 7</text>
+  <text x="1179" y="884" class="s">test-restore.sh → throwaway DB, compare row counts (PASS)</text>
+  <text x="1179" y="899" class="s">restore.sh → live DB (stop svc, restore in 1 transaction, start)</text>
+  <line x1="1533" y1="620" x2="1533" y2="828" class="line" marker-end="url(#arrow)"/>
+  <line x1="1445" y1="795" x2="1445" y2="828" class="line" marker-end="url(#arrow)"/>
 
   <text x="60" y="960" class="t">Secrets: dev default DB passwords locally; real ones only in an untracked .env on the machine that runs it — never in a repo or image.</text>
-  <text x="60" y="980" class="t">Isolation: the gateway joins only "services"; each DB is on its own internal network with only its service + migrate job (no internet, not resolvable by others).</text>
+  <text x="60" y="980" class="t">Isolation: the gateway joins only "services"; each DB is on its own internal network with only its service, migrate and backup jobs (no internet, not resolvable by others).</text>
 
   <!-- ===================== ROW 3 ===================== -->
   <!-- Clean architecture -->
@@ -357,6 +364,6 @@
   <line x1="1330" y1="1135" x2="1353" y2="1135" class="line-planned" marker-end="url(#arrow-gray)"/>
 
   <text x="700" y="1228" class="planned-t">Also: YAML &amp; GitHub Actions learning session (paused; resume at Part 2 exercises)</text>
-  <text x="700" y="1246" class="planned-t">Also: skills for the best practices · trusted local TLS done (mkcert -install pending on this Mac)</text>
+  <text x="700" y="1246" class="planned-t">Also: skills for the best practices · trusted local TLS and backups done</text>
   <text x="700" y="1264" class="planned-t">Kafka needs ~1 GB more RAM (Docker Desktop limit locally, t4g.medium on AWS)</text>
 </svg>

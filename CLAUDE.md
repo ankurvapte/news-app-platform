@@ -49,7 +49,7 @@ Clean architecture; dependencies point inward only:
 - **Tests:** `test_use_cases.py` is plain unittest (no deps) over the real seed data file. `test_api.py` sets `DATA_FILE` before importing `app.main` (settings load on import) and uses `with TestClient(app)` so `lifespan` runs.
 - **Gateway (platform compose):** Traefik discovers services by `traefik.*` labels (`exposedbydefault=false`); it is the only container with published ports, bound to `127.0.0.1`. Routes match `Host(${PUBLIC_HOST:-localhost})` + path; write methods on users-svc are not routed. Label `$` must be written `$$` in compose.
 - **Docker:** each service's own compose file maps one host port to container port 8080. If that host port is taken, the container gets created without its port binding: free the port, then `docker compose up -d --force-recreate`. Compose `environment:` overrides Dockerfile `ENV`, which overrides `config.py` defaults.
-- **Networks (platform compose):** each database joins only its own `internal: true` network (`<svc>-backend`) shared with its service; services meet on `services`. A new service with a DB gets its own backend network; the gateway and Kafka join `services` only, never a backend network.
+- **Networks (platform compose):** each database joins only its own `internal: true` network (`<svc>-backend`) shared with its service; services meet on `services`. A new service with a DB gets its own backend network; each DB's `<svc>-migrate` and `<svc>-backup` jobs join only that backend network; the gateway and Kafka join `services` only, never a backend network.
 
 ## Container-first checklist for every change
 1. One business capability per service. Users, comments, search etc. are separate services.
@@ -84,7 +84,7 @@ Clean architecture; dependencies point inward only:
   - [x] Traefik gateway (`traefik:v3.7.16`) as the only entry: ports bound to `127.0.0.1`, HTTP → HTTPS, routes by `Host(PUBLIC_HOST)` + path, `/health/<svc>/*` rewritten to each service's `/health/*`; services and DBs publish no ports
   - [x] users-svc writes blocked at the gateway (only GET/HEAD routed)
   - [x] Trusted local TLS: `scripts/make-local-cert.sh` (mkcert) writes `certs/` (git-ignored), loaded by Traefik's file provider with hot reload; empty `certs/` falls back to the self-signed default
-  - [ ] Postgres backups (`pg_dump` per DB to a folder outside the volumes) and a tested restore
+  - [x] Postgres backups: `<svc>-backup` jobs (postgres:17-alpine, non-root) run `scripts/pg-backup.sh` at start + daily, keep 7, `pg_dump -Fc` to git-ignored `backups/<svc>/` outside the volumes; `scripts/test-restore.sh` proves a dump restores (throwaway DB, row counts match live); `scripts/restore.sh` restores into live in one transaction (tested after simulated damage)
   - [ ] Health check through the gateway on a schedule (a script or a small uptime container hitting `/health/<svc>/ready`)
   - Secrets: dev default passwords are fine locally; real ones go in an untracked `.env` on whatever machine runs it, never in a repo
 - [ ] CD (local first): merge to `main` deploys automatically, checks `/health/ready` through the gateway, one-command rollback to the previous image tag
