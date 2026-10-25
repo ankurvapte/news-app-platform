@@ -6,7 +6,7 @@ name: news-app
 
 # Pinned images: full commit SHA tags from each service's CI (never :main).
 # Bump these to deploy a new version; CD will do it automatically later.
-x-articles-image: &articles-image ghcr.io/ankurvapte/articles-svc:1aa36908ed707d8f81136eb8254a946c413d252f
+x-articles-image: &articles-image ghcr.io/ankurvapte/articles-svc:0668a418903126d77520a5c2046dd7cd93755e3b
 x-users-image: &users-image ghcr.io/ankurvapte/users-svc:3b45cb25b9aa60f71a23dc6a610fe6554af776fd
 
 # Dev-only default passwords; set ARTICLES_DB_PASSWORD / USERS_DB_PASSWORD in your shell or .env for anything else.
