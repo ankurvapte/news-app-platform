@@ -73,6 +73,9 @@ Clean architecture; dependencies point inward only:
   - [ ] Reading `ci.yml` and `docker-compose.yml` line by line; then write a small workflow from scratch and check it with `actionlint`
   - [ ] Where to look things up: workflow syntax, events and contexts docs, action READMEs/`action.yml`, starter-workflows, VS Code GitHub Actions + YAML extensions
 - [ ] Deploy to a web server
+  - Decided (2026-10-25): AWS, one small VM that can be stopped when unused (cost matters); lean and fast deploys. Domain still to buy. Traefik first; NGINX later as a second gateway option, and CD should be able to deploy with either.
+  - Open: "deploy to both" means two gateway configs on one server (switchable), or two environments (one per gateway)?
+  - Open: ARM (Graviton, cheaper) needs CI to build `linux/arm64` images too; CI builds only `linux/amd64` today.
   - [ ] Platform compose runs pinned registry images (`ghcr.io/ankurvapte/<svc>:<full sha>`, no `build:`); secrets live on the server, never in a repo
   - [ ] Reverse proxy / API gateway (NGINX or Traefik) with TLS as the only public entry; DBs never exposed
   - [ ] Lock down users-svc writes before going public (no auth yet): block or protect them at the gateway
