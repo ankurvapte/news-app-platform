@@ -239,9 +239,9 @@ Each module: the decision, the three anchors, the internals it needs, a lab, and
 
 | Module | Done | Recall 1 (next session) | Recall 2 (~1 week) | Recall 3 (~1 month) |
 |---|---|---|---|---|
-| Intro walkthrough (2026-10-26) | ✓ (3 exercises open) | | | |
-| A1 | ADR 0001 ✓ (2026-10-26); note + teach-back open | | | |
-| A2 | | | | |
+| Intro walkthrough (2026-10-26) | ✓ (3 exercises open) | 2026-10-26: Q1–3 missed (watched, didn't run) → re-ask | | |
+| A1 | ADR 0001 ✓ (2026-10-26); note + teach-back open | 2026-10-26: mostly right (4th guarantee = one thing to be up) | | |
+| A2 | ADR 0002 ✓ (2026-10-26); note + teach-back open | | | |
 | A3 | | | | |
 | A4 | | | | |
 | B1–B4 | | | | |

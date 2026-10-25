@@ -9,6 +9,7 @@ and the old one's status becomes "Superseded by NNNN".
 | # | Decision | Scope | Status |
 |---|---|---|---|
 | [0001](0001-split-ecommerce-in-steps.md) | Split the eCommerce backend in steps, after-the-fact capabilities first | eCommerce | Accepted (2026-10-26) |
+| [0002](0002-how-the-monolith-talks-to-split-services.md) | Events for after-the-fact work, synchronous queries with a short timeout for reads | eCommerce | Accepted (2026-10-26) |
 
 ## Template
 ```markdown
