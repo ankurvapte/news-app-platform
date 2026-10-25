@@ -7,7 +7,7 @@ name: news-app
 # Pinned images: full commit SHA tags from each service's CI (never :main).
 # Bump these to deploy a new version; CD will do it automatically later.
 x-articles-image: &articles-image ghcr.io/ankurvapte/articles-svc:1aa36908ed707d8f81136eb8254a946c413d252f
-x-users-image: &users-image ghcr.io/ankurvapte/users-svc:01756dd4a979ad53ce5d77591f7344e5d94927ea
+x-users-image: &users-image ghcr.io/ankurvapte/users-svc:3b45cb25b9aa60f71a23dc6a610fe6554af776fd
 
 # Dev-only default passwords; set ARTICLES_DB_PASSWORD / USERS_DB_PASSWORD in your shell or .env for anything else.
 x-articles-db-url: &articles-db-url postgresql://articles:${ARTICLES_DB_PASSWORD:-articles-dev-password}@articles-db:5432/articles
