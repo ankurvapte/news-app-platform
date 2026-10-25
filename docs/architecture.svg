@@ -28,7 +28,7 @@
 
   <!-- Title + legend -->
   <text x="40" y="46" class="title">News app — master architecture</text>
-  <text x="40" y="72" class="subtitle">As of 2026-10-25 · flow: code → CI → registry → local deploy</text>
+  <text x="40" y="72" class="subtitle">As of 2026-10-25 · flow: code → CI → registry → pull-based CD → local deploy</text>
   <rect x="1130" y="34" width="34" height="18" rx="4" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
   <text x="1172" y="48" class="t">built &amp; running</text>
   <rect x="1290" y="34" width="34" height="18" rx="4" class="planned"/>
@@ -48,7 +48,7 @@
   <text x="74" y="225" class="s">FastAPI · Python 3.12 · user accounts (read + write)</text>
   <rect x="60" y="241" width="340" height="40" rx="8" fill="#ffffff" stroke="#64748b"/>
   <text x="74" y="258" class="b">news-app-platform</text>
-  <text x="74" y="273" class="s">docker-compose · gateway · CLAUDE.md roadmap</text>
+  <text x="74" y="273" class="s">compose · gateway · CD scripts · roadmap (edit here)</text>
   <text x="60" y="310" class="t">Each service: own repo, own Dockerfile, own tests,</text>
   <text x="60" y="326" class="t">own compose for dev (Swagger on :8090 / :8081)</text>
 
@@ -61,34 +61,41 @@
   <text x="520" y="128" class="h">② GitHub — Actions CI  (.github/workflows/ci.yml, same in each service repo)</text>
   <!-- pipeline chips -->
   <g>
-    <rect x="520" y="150" width="145" height="74" rx="8" fill="#ffffff" stroke="#7c3aed"/>
-    <text x="534" y="172" class="b">job: test</text>
-    <text x="534" y="190" class="s">pytest -ra</text>
-    <text x="534" y="205" class="s">+ Postgres service</text>
-    <text x="534" y="218" class="s">container</text>
+    <rect x="520" y="150" width="118" height="74" rx="8" fill="#ffffff" stroke="#7c3aed"/>
+    <text x="531" y="172" class="b">job: test</text>
+    <text x="531" y="190" class="s">pytest -ra</text>
+    <text x="531" y="205" class="s">+ Postgres service</text>
+    <text x="531" y="218" class="s">container</text>
 
-    <rect x="685" y="150" width="145" height="74" rx="8" fill="#ffffff" stroke="#7c3aed"/>
-    <text x="699" y="172" class="b">job: image → build</text>
-    <text x="699" y="190" class="s">linux/arm64</text>
-    <text x="699" y="205" class="s">native ARM runner</text>
-    <text x="699" y="218" class="s">gha layer cache</text>
+    <rect x="652" y="150" width="118" height="74" rx="8" fill="#ffffff" stroke="#7c3aed"/>
+    <text x="663" y="172" class="b">image: build</text>
+    <text x="663" y="190" class="s">linux/arm64</text>
+    <text x="663" y="205" class="s">native ARM runner</text>
+    <text x="663" y="218" class="s">gha layer cache</text>
 
-    <rect x="850" y="150" width="145" height="74" rx="8" fill="#ffffff" stroke="#7c3aed"/>
-    <text x="864" y="172" class="b">smoke test</text>
-    <text x="864" y="190" class="s">docker run image</text>
-    <text x="864" y="205" class="s">/health/ready = 200</text>
-    <text x="864" y="218" class="s">within 30 s</text>
+    <rect x="784" y="150" width="118" height="74" rx="8" fill="#ffffff" stroke="#7c3aed"/>
+    <text x="795" y="172" class="b">smoke test</text>
+    <text x="795" y="190" class="s">docker run image</text>
+    <text x="795" y="205" class="s">/health/ready 200</text>
+    <text x="795" y="218" class="s">within 30 s</text>
 
-    <rect x="1015" y="150" width="145" height="74" rx="8" fill="#ffffff" stroke="#7c3aed"/>
-    <text x="1029" y="172" class="b">push</text>
-    <text x="1029" y="190" class="s">tag = full commit SHA</text>
-    <text x="1029" y="205" class="s">+ :main on main</text>
-    <text x="1029" y="218" class="s">GITHUB_TOKEN</text>
+    <rect x="916" y="150" width="118" height="74" rx="8" fill="#ffffff" stroke="#7c3aed"/>
+    <text x="927" y="172" class="b">push</text>
+    <text x="927" y="190" class="s">tag = full SHA</text>
+    <text x="927" y="205" class="s">+ :main on main</text>
+    <text x="927" y="218" class="s">GITHUB_TOKEN</text>
+
+    <rect x="1048" y="150" width="118" height="74" rx="8" class="planned"/>
+    <text x="1059" y="172" class="planned-b">deploy-bump</text>
+    <text x="1059" y="190" class="s">main only: pins</text>
+    <text x="1059" y="205" class="s">the SHA in platform</text>
+    <text x="1059" y="218" class="s">⏳ token needed</text>
   </g>
-  <line x1="665" y1="187" x2="683" y2="187" class="line" marker-end="url(#arrow)"/>
-  <line x1="830" y1="187" x2="848" y2="187" class="line" marker-end="url(#arrow)"/>
-  <line x1="995" y1="187" x2="1013" y2="187" class="line" marker-end="url(#arrow)"/>
-  <text x="520" y="250" class="t">Trigger: every push (any branch) + manual "Run workflow" · ~1.5 min</text>
+  <line x1="638" y1="187" x2="650" y2="187" class="line" marker-end="url(#arrow)"/>
+  <line x1="770" y1="187" x2="782" y2="187" class="line" marker-end="url(#arrow)"/>
+  <line x1="902" y1="187" x2="914" y2="187" class="line" marker-end="url(#arrow)"/>
+  <line x1="1034" y1="187" x2="1046" y2="187" class="line-planned" marker-end="url(#arrow-gray)"/>
+  <text x="520" y="250" class="t">Trigger: every push (any branch) + manual "Run workflow" · ~1.5 min · bump on main only</text>
   <text x="520" y="268" class="t">needs: test → no image is pushed unless every test passed</text>
   <text x="520" y="286" class="t">permissions: read-only by default; only the image job may write packages</text>
   <text x="520" y="304" class="t">concurrency: a newer push cancels the older run on the same branch</text>
@@ -120,8 +127,19 @@
 
   <!-- ===================== ROW 2: local deploy ===================== -->
   <rect x="40" y="405" width="1520" height="590" rx="14" fill="#fcfcfd" stroke="#0f172a" stroke-width="1.8"/>
-  <text x="60" y="434" class="h">④ Your Mac — Docker Desktop: local deploy  (news-app-platform/docker-compose.yml, project "news-app")</text>
-  <text x="60" y="453" class="s">docker compose up -d  ·  ~6 s redeploy  ·  only the gateway publishes ports, and only on 127.0.0.1 (nothing reachable from your network)</text>
+  <text x="60" y="434" class="h">④ Your Mac — Docker Desktop: local deploy  (deploy clone ~/Deploy/news-app-platform, project "news-app")</text>
+  <text x="60" y="453" class="s">deployed by the CD updater (only checks out origin/main commits)  ·  ~8 s redeploy  ·  only the gateway publishes ports, and only on 127.0.0.1</text>
+
+  <!-- CD: GitHub (news-app-platform main) → updater on the Mac -->
+  <path d="M520,335 V382 H52 V509 H63" class="line" marker-end="url(#arrow)"/>
+  <rect x="120" y="362" width="300" height="34" rx="6" fill="#ffffff"/>
+  <text x="126" y="376" class="lbl">CD: git fetch news-app-platform main</text>
+  <text x="126" y="391" class="s">every 2 min · read-only (public repo, no credentials)</text>
+  <rect x="65" y="468" width="210" height="82" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+  <text x="79" y="489" class="b">CD updater (launchd)</text>
+  <text x="79" y="506" class="s">new commit? → deploy.sh:</text>
+  <text x="79" y="521" class="s">checkout → pull → up -d</text>
+  <text x="79" y="536" class="s">health via gateway, else rollback</text>
 
   <!-- Client -->
   <rect x="65" y="560" width="160" height="80" rx="10" fill="#ffffff" stroke="#334155" stroke-width="1.5"/>
@@ -265,11 +283,13 @@
   <text x="639" y="872" class="planned-t">same routes, TLS, write block</text>
   <text x="639" y="888" class="planned-t">swap via profiles → benchmark</text>
 
-  <rect x="900" y="830" width="215" height="70" rx="10" class="planned"/>
-  <text x="914" y="854" class="planned-b">Scheduled health check</text>
-  <text x="914" y="872" class="planned-t">hits /health/&lt;svc&gt;/ready</text>
-  <text x="914" y="888" class="planned-t">through the gateway</text>
-  <line x1="1000" y1="830" x2="840" y2="782" class="line-planned" marker-end="url(#arrow-gray)"/>
+  <rect x="900" y="830" width="215" height="80" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="1.6"/>
+  <text x="914" y="852" class="b">uptime-check (every 60 s)</text>
+  <text x="914" y="869" class="s">curl /health/&lt;svc&gt;/ready via</text>
+  <text x="914" y="884" class="s">host.docker.internal:443 → gateway</text>
+  <text x="914" y="899" class="s">healthy = all 200 · JSON logs</text>
+  <line x1="960" y1="830" x2="845" y2="782" class="line" marker-end="url(#arrow)"/>
+  <text x="975" y="822" class="s">via published port</text>
 
   <rect x="1165" y="830" width="375" height="80" rx="10" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.6"/>
   <text x="1179" y="852" class="b">backups/  on the host (git-ignored, outside volumes)</text>
@@ -327,13 +347,13 @@
   <rect x="680" y="1025" width="880" height="255" rx="12" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6 4"/>
   <text x="700" y="1053" class="h" fill="#475569">⑥ Roadmap ahead (planned)</text>
 
-  <rect x="700" y="1075" width="190" height="120" rx="10" class="planned"/>
-  <text x="714" y="1099" class="planned-b">CD (local first)</text>
-  <text x="714" y="1118" class="planned-t">merge to main → deploy</text>
-  <text x="714" y="1134" class="planned-t">check /health/ready</text>
-  <text x="714" y="1150" class="planned-t">1-command rollback</text>
-  <text x="714" y="1176" class="planned-t">open: self-hosted runner</text>
-  <text x="714" y="1190" class="planned-t">or pull-based updater</text>
+  <rect x="700" y="1075" width="190" height="120" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="1.6"/>
+  <text x="714" y="1099" class="b">CD: pull-based (GitOps)</text>
+  <text x="714" y="1118" class="s">✓ deploy.sh + auto rollback</text>
+  <text x="714" y="1134" class="s">✓ updater (launchd, 2 min)</text>
+  <text x="714" y="1150" class="s">✓ tested: bad tag, unhealthy</text>
+  <text x="714" y="1176" class="s">⏳ deploy-bump token</text>
+  <text x="714" y="1190" class="s">⏳ end-to-end + agent install</text>
 
   <rect x="915" y="1075" width="190" height="120" rx="10" class="planned"/>
   <text x="929" y="1099" class="planned-b">Gateway benchmark</text>
@@ -364,6 +384,6 @@
   <line x1="1330" y1="1135" x2="1353" y2="1135" class="line-planned" marker-end="url(#arrow-gray)"/>
 
   <text x="700" y="1228" class="planned-t">Also: YAML &amp; GitHub Actions learning session (paused; resume at Part 2 exercises)</text>
-  <text x="700" y="1246" class="planned-t">Also: skills for the best practices · trusted local TLS and backups done</text>
+  <text x="700" y="1246" class="planned-t">Also: skills for the best practices · done: trusted local TLS, backups, uptime check</text>
   <text x="700" y="1264" class="planned-t">Kafka needs ~1 GB more RAM (Docker Desktop limit locally, t4g.medium on AWS)</text>
 </svg>
