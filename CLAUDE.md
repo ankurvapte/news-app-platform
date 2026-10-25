@@ -95,7 +95,7 @@ Clean architecture; dependencies point inward only:
   - Decided (2026-10-25): AWS, one small VM that can be stopped when unused (cost matters); lean and fast deploys. Own domain deferred (user's choice); start on a free hostname (e.g. DuckDNS or sslip.io) with real Let's Encrypt TLS, and keep the hostname in one env var so switching to a bought domain later is a config change. Traefik first; NGINX later as a second gateway option, and CD should be able to deploy with either.
   - Decided: ARM (Graviton `t4g`) instance. CI runs on native ARM runners (`ubuntu-24.04-arm`) and builds `linux/arm64` only (server and dev Macs are both ARM).
   - Decided: access via AWS SSM only (instance role with `AmazonSSMManagedInstanceCore`); no SSH port, no key pairs. Security group inbound: 80/443 only. CD will reach the server through SSM too (GitHub OIDC → AWS role, no long-lived AWS keys).
-  - Parked: DuckDNS hostname (agreed), instance size (`t4g.small` 2 GB recommended vs `t4g.medium` 4 GB, undecided), region Mumbai `ap-south-1` (agreed). Revisit all three when this step starts.
+  - Decided: DuckDNS hostname, region Mumbai (`ap-south-1`), instance size `t4g.small` (2 vCPU / 2 GB; resize the stopped instance to `t4g.medium` when Kafka arrives). Check current prices when this step starts.
   - [ ] Secrets live on the server (untracked `.env`), never in a repo
   - [ ] Traefik with Let's Encrypt TLS for the DuckDNS hostname (`PUBLIC_HOST`); ports 80/443 public instead of `127.0.0.1`
   - [ ] Nightly Postgres backups off the server, and a tested restore
