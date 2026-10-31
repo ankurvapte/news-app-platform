@@ -82,6 +82,13 @@ Clean architecture; dependencies point inward only:
   - [ ] Expressions and contexts: `${{ }}` vs `$VAR`, the `github` context (using the real values from the "Show github context" step), `steps.<id>.outputs`, secrets
   - [ ] Reading `ci.yml` and `docker-compose.yml` line by line; then write a small workflow from scratch and check it with `actionlint`
   - [ ] Where to look things up: workflow syntax, events and contexts docs, action READMEs/`action.yml`, starter-workflows, VS Code GitHub Actions + YAML extensions
+- [ ] Learning session: Dockerfile vs Docker Compose (added 2026-10-31; the user keeps forgetting what each one is for. Goal: say from memory which file answers which question. Separate from the Kafka order; start when the user asks, one step at a time, recall quiz first as in the Kafka sessions)
+  - [ ] The distinction: Dockerfile builds one image; compose runs several containers together. Image vs container; what happens at build time vs run time; where the two meet (`build:` vs `image:`)
+  - [ ] Dockerfile, line by line on the real `articles-svc/Dockerfile`: multi-stage, layers and cache, `.dockerignore`, non-root, `ENV`, `CMD`; then break something and rebuild
+  - [ ] Compose, on the real `articles-svc/docker-compose.yml`: services, ports, volumes, networks, `depends_on` conditions, the one-shot migrate job, env precedence (compose `environment:` → Dockerfile `ENV` → `config.py`)
+  - [ ] Why two compose files: a service's own (`build:`, host port, for development) vs the platform one (pinned `image:`, gateway, no host ports); compare them side by side
+  - [ ] Decision drill: given a change (new env var, new dependency, new database, new port), name which file changes and why; then write a Dockerfile and compose file from scratch for a tiny app
+  - [ ] Note in the user's own words: `docs/learning/docker/dockerfile-vs-compose.md` (Claude draws the diagram, the user writes the bullets)
 - [x] Deploy locally (production-like, on this Mac): learn and iterate on deploys without a VM to start or stop (decided 2026-10-25)
   - [x] Platform compose runs pinned registry images (`x-<svc>-image` anchors with full-SHA tags, no `build:`)
   - [x] Traefik gateway (`traefik:v3.7.16`) as the only entry: ports bound to `127.0.0.1`, HTTP → HTTPS, routes by `Host(PUBLIC_HOST)` + path, `/health/<svc>/*` rewritten to each service's `/health/*`; services and DBs publish no ports
